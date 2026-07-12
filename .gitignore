@@ -1,0 +1,17 @@
+# secrets & local data — NEVER commit
+backend/.env
+.env
+*.db
+backend/marketing.db
+
+# logs
+*.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# os
+.DS_Store
+Thumbs.db
