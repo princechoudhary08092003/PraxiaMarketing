@@ -2,10 +2,12 @@
 A new connection per call keeps it thread-safe under uvicorn."""
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "marketing.db"
+# MARKETING_DB lets a host point the SQLite file at a persistent disk (e.g. /data/marketing.db).
+DB_PATH = Path(os.getenv("MARKETING_DB") or (Path(__file__).resolve().parent.parent / "marketing.db"))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS leads (

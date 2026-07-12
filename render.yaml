@@ -1,0 +1,46 @@
+# Render blueprint for the Praxia Marketing tool.
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo.
+# Then set the two SECRET env vars (OPENAI_API_KEY, SMTP_APP_PASSWORD) in the dashboard.
+services:
+  - type: web
+    name: praxia-marketing
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: MARKETING_MODEL
+        value: gpt-4o-mini
+      - key: FROM_NAME
+        value: Praxia AI Studios
+      - key: SENDER_NAME
+        value: Prince Choudhary
+      - key: SMTP_USER
+        value: praxiaaistudios@gmail.com
+      - key: PUBLIC_EMAIL
+        value: praxiaaistudios@gmail.com
+      - key: WHATSAPP
+        value: "+91 88277 69501"
+      - key: DAILY_SEND_CAP
+        value: "200"
+      # secrets — set these in the Render dashboard (Environment), not here:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SMTP_APP_PASSWORD
+        sync: false
+      - key: BOOKING_LINK
+        sync: false
+      - key: YOUTUBE_DEMO
+        sync: false
+
+    # ---- DURABLE DATA (recommended for a real pipeline) ----
+    # The free plan has an EPHEMERAL disk: leads/replies reset on every restart or redeploy.
+    # To keep data, switch this service to a paid plan and uncomment the disk below, then add
+    # an env var MARKETING_DB=/data/marketing.db so the database lives on the persistent disk.
+    # disk:
+    #   name: praxia-data
+    #   mountPath: /data
+    #   sizeGB: 1
