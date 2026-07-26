@@ -45,11 +45,40 @@ CREATE TABLE IF NOT EXISTS replies (
   followup_subject TEXT DEFAULT '', followup_body TEXT DEFAULT '',
   created_at TEXT DEFAULT (datetime('now'))
 );
+-- Growth Studio: social presence engine
+CREATE TABLE IF NOT EXISTS campaigns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT DEFAULT '', goal TEXT DEFAULT '',
+  products TEXT DEFAULT '', days INTEGER DEFAULT 7, per_day INTEGER DEFAULT 2,
+  status TEXT DEFAULT 'active', plan_json TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, campaign_id INTEGER, day INTEGER DEFAULT 1, slot INTEGER DEFAULT 1,
+  platform TEXT DEFAULT 'instagram', product TEXT DEFAULT '', format TEXT DEFAULT 'reel',
+  theme TEXT DEFAULT '', hook TEXT DEFAULT '', caption TEXT DEFAULT '', hashtags TEXT DEFAULT '',
+  title TEXT DEFAULT '', script TEXT DEFAULT '', image_prompt TEXT DEFAULT '', image_path TEXT DEFAULT '',
+  best_time TEXT DEFAULT '', status TEXT DEFAULT 'idea', scheduled_at TEXT DEFAULT '',
+  posted_at TEXT DEFAULT '', external_url TEXT DEFAULT '', boosted INTEGER DEFAULT 0,
+  notes TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS post_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, platform TEXT DEFAULT '',
+  impressions INTEGER DEFAULT 0, reach INTEGER DEFAULT 0, likes INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0, shares INTEGER DEFAULT 0, saves INTEGER DEFAULT 0,
+  views INTEGER DEFAULT 0, followers_delta INTEGER DEFAULT 0, recorded_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS autopilot_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, run_date TEXT DEFAULT '', status TEXT DEFAULT 'running',
+  log TEXT DEFAULT '', ig_post_id INTEGER, yt_post_id INTEGER,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 # columns added after the initial release (safe idempotent migration)
 MIGRATIONS = {
     "leads": [("category", "TEXT DEFAULT ''"), ("last_reply_at", "TEXT DEFAULT ''")],
+    # real platform media id (IG media id / YT video id) for automatic analytics pulls
+    "posts": [("media_id", "TEXT DEFAULT ''"), ("video_seconds", "INTEGER DEFAULT 0")],
+    "post_metrics": [("plays", "INTEGER DEFAULT 0")],
 }
 
 TEMPLATES_SEED = [

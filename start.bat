@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
-REM  Praxia Marketing - local launcher (Windows)
-REM  Reuses the Praxia Course Factory venv (fastapi/uvicorn/openai/dotenv).
+REM  Praxia Marketing + Growth Studio - double-click launcher
+REM  Starts the app and opens it in your browser automatically.
 REM ============================================================
 setlocal
 cd /d "%~dp0"
@@ -13,9 +13,17 @@ if not exist "backend\.env" (
     copy "backend\.env.example" "backend\.env" >nul
 )
 
-echo [start] Praxia Marketing -> http://127.0.0.1:8020
-start "Praxia Marketing" cmd /k "cd /d %~dp0backend && "%PY%" -m uvicorn app.main:app --reload --port 8020"
+echo ============================================================
+echo   Praxia Growth Studio
+echo   Starting... a browser tab opens in a few seconds.
+echo   Keep THIS window open while you use it. Close it to stop.
+echo ============================================================
 echo.
-echo Open http://127.0.0.1:8020 in your browser.
-echo.
+
+REM open the browser after the server has had a moment to start
+start "" /b cmd /c "timeout /t 6 >nul & start "" http://127.0.0.1:8020"
+
+cd backend
+"%PY%" -m uvicorn app.main:app --port 8020 --host 127.0.0.1
+
 endlocal

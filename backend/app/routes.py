@@ -4,7 +4,9 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse, Response
@@ -57,7 +59,13 @@ def firsttouch_for(lead_id: int):
 
 @router.post("/firsttouch/send-all")
 def firsttouch_send_all():
-    """Send the fixed first-touch email to every lead still in status 'new' (with an email)."""
+    """Send the fixed first-touch email (with the overview PDF attached) to every accepted lead
+    still in status 'new'. Each send is logged to messages + events so replies stay tracked."""
+    s = get_settings()
+    if not s.smtp_ready:
+        raise HTTPException(400, "Email is not configured. Add SMTP_USER and SMTP_APP_PASSWORD in backend/.env.")
+    attachments = s.first_touch_attachments()
+    attach_names = ", ".join(os.path.basename(p) for p in attachments)
     conn = get_conn()
     try:
         leads = [_row(r) for r in conn.execute("SELECT * FROM leads WHERE status='new' AND email!=''")]
@@ -67,7 +75,7 @@ def firsttouch_send_all():
     for lead in leads:
         msg = firsttouch.build_first_touch(lead)
         try:
-            mailer.send_email(lead["email"], msg["subject"], msg["body"])
+            mailer.send_email(lead["email"], msg["subject"], msg["body"], attachments=attachments)
         except Exception:  # noqa: BLE001
             failed += 1
             continue
@@ -77,13 +85,15 @@ def firsttouch_send_all():
                 "INSERT INTO messages(lead_id,channel,subject,body,status) VALUES (?, 'email', ?, ?, 'sent')",
                 (lead["id"], msg["subject"], msg["body"]),
             )
-            conn.execute("INSERT INTO events(lead_id,message_id,type) VALUES (?,?, 'sent')", (lead["id"], cur.lastrowid))
+            conn.execute("INSERT INTO events(lead_id,message_id,type,meta) VALUES (?,?, 'sent', ?)",
+                         (lead["id"], cur.lastrowid, f"first-touch; attached: {attach_names or 'none'}"))
             conn.execute("UPDATE leads SET status='contacted' WHERE id=?", (lead["id"],))
             conn.commit()
         finally:
             conn.close()
         sent += 1
-    return {"sent": sent, "failed": failed, "total": len(leads)}
+    return {"sent": sent, "failed": failed, "total": len(leads),
+            "attached": [os.path.basename(p) for p in attachments]}
 
 
 @router.get("/stats")
@@ -330,6 +340,25 @@ def seed():
     return [{"name": n, "domain": d, "country": c, "org_type": t} for (n, d, c, t) in sourcing.SEED]
 
 
+def _harvest_jobs(jobs: list[dict]) -> int:
+    """Harvest every job's domain CONCURRENTLY, then add the candidates (DB writes stay serial)."""
+    results: dict[int, list] = {}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futs = {ex.submit(sourcing.harvest_domain, j["domain"]): i for i, j in enumerate(jobs)}
+        for fut in as_completed(futs):
+            i = futs[fut]
+            try:
+                results[i] = fut.result()
+            except Exception:
+                results[i] = []
+    added = 0
+    for i, j in enumerate(jobs):
+        rows = results.get(i) or []
+        if rows:
+            added += _add_candidates(rows, j.get("name", ""), j["org_type"], j["country"], j["source"])
+    return added
+
+
 @router.post("/source/harvest")
 def source_harvest(payload: dict):
     raw = payload.get("input", "") or ""
@@ -338,11 +367,10 @@ def source_harvest(payload: dict):
     domains = [x for x in re.split(r"[\s,]+", raw) if x.strip()]
     if not domains:
         raise HTTPException(400, "Paste at least one website or domain.")
-    added, scanned = 0, 0
-    for d in domains[:40]:
-        added += _add_candidates(sourcing.harvest_domain(d), "", org_type, country, "harvest")
-        scanned += 1
-    return {"added": added, "scanned": scanned}
+    jobs = [{"domain": d, "name": "", "org_type": org_type, "country": country, "source": "harvest"}
+            for d in domains[:40]]
+    added = _harvest_jobs(jobs)
+    return {"added": added, "scanned": len(jobs)}
 
 
 @router.post("/source/seed")
@@ -352,9 +380,9 @@ def source_seed(payload: dict):
     limit = int(payload.get("limit") or 10)
     seeds = [s for s in sourcing.SEED
              if (not country or s[2] == country) and (not org_type or s[3] == org_type)][:limit]
-    added = 0
-    for (name, domain, c, t) in seeds:
-        added += _add_candidates(sourcing.harvest_domain(domain), name, t, c, "directory")
+    jobs = [{"domain": domain, "name": name, "org_type": t, "country": c, "source": "directory"}
+            for (name, domain, c, t) in seeds]
+    added = _harvest_jobs(jobs)
     return {"added": added, "scanned": len(seeds)}
 
 
@@ -365,11 +393,11 @@ def source_search(payload: dict):
         raise HTTPException(400, "Enter a search query.")
     country = payload.get("country") or "India"
     org_type = payload.get("org_type") or "university"
-    urls = sourcing.web_search(q, limit=int(payload.get("limit") or 6))
-    added = 0
-    for u in urls:
-        added += _add_candidates(sourcing.harvest_domain(u), "", org_type, country, "search")
-    return {"urls": urls, "added": added}
+    domains = sourcing.discover_domains(q, limit=int(payload.get("limit") or 24))
+    jobs = [{"domain": d, "name": "", "org_type": org_type, "country": country, "source": "search"}
+            for d in domains]
+    added = _harvest_jobs(jobs)
+    return {"urls": domains, "added": added}
 
 
 @router.get("/candidates")

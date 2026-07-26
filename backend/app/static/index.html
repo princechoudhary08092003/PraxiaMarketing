@@ -59,6 +59,27 @@
   .x{color:var(--muted);cursor:pointer}
   .sp{height:16px}
   .flex{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  /* Growth Studio */
+  .agents{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:6px 0 4px}
+  .agent{background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:12px 14px}
+  .agent .r{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  .agent .d{font-size:12px;color:var(--body);margin-top:5px;line-height:1.4}
+  .chip{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;padding:2px 8px;border-radius:3px;border:1px solid var(--line);color:var(--body)}
+  .chip.plat{background:rgba(201,162,75,.12);color:var(--goldl);border-color:transparent}
+  .st-idea{color:var(--muted)} .st-drafted{color:var(--goldl)} .st-approved{color:var(--ok)}
+  .st-scheduled{color:#7FA6C9} .st-posted{color:var(--ok)}
+  .pcard{background:var(--raised);border:1px solid var(--line);border-radius:5px;padding:0;overflow:hidden;margin-bottom:12px}
+  .pcard .head{display:flex;gap:12px;padding:14px 16px;cursor:pointer;align-items:flex-start}
+  .pcard .thumb{width:60px;height:60px;border-radius:4px;object-fit:cover;background:#100E0A;border:1px solid var(--line);flex:none}
+  .pcard .thumb.ph{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px}
+  .pcard .body{border-top:1px solid var(--line);padding:16px;display:none}
+  .pcard.open .body{display:block}
+  .pcard .hk{color:var(--ink);font-size:14px;line-height:1.4}
+  .big{width:100%;max-width:340px;border-radius:6px;border:1px solid var(--line);display:block;margin-top:8px}
+  .metgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
+  .metgrid input{padding:7px 8px}
+  .adaptbox{background:var(--raised);border:1px solid var(--gold);border-radius:5px;padding:16px;margin-top:14px}
+  pre.script{white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--body);background:#100E0A;border:1px solid var(--line);border-radius:4px;padding:10px;max-height:220px;overflow:auto}
 </style>
 </head>
 <body>
@@ -72,6 +93,7 @@
   </div>
   <nav>
     <button data-tab="dash" class="active">Dashboard</button>
+    <button data-tab="growth">Growth Studio</button>
     <button data-tab="source">Sourcing</button>
     <button data-tab="leads">Leads</button>
     <button data-tab="compose">Compose</button>
@@ -96,6 +118,90 @@
     <div class="sp"></div>
     <p class="eyebrow">§ Reply categories</p>
     <div class="funnel" id="cats"></div>
+  </section>
+
+  <section id="growth" style="display:none">
+    <p class="eyebrow">§ Growth Studio</p>
+    <h2>Your AI social team</h2>
+    <p class="note" style="margin:-10px 0 14px">A five-agent team that plans, writes, designs, schedules and optimizes your Instagram and YouTube presence for the three products. It never states our price, it anchors on what the market charges and the time and cost we save.</p>
+
+    <div class="agents">
+      <div class="agent"><div class="r">Strategist</div><div class="d">Builds the multi-day plan and cadence across all three products.</div></div>
+      <div class="agent"><div class="r">Content Creator</div><div class="d">Writes hooks, captions, scripts and the visual brief.</div></div>
+      <div class="agent"><div class="r">SEO Specialist</div><div class="d">Hashtags, keywords, titles, best posting time.</div></div>
+      <div class="agent"><div class="r">Social Manager</div><div class="d">Schedules 2 to 3 posts a day and publishes them.</div></div>
+      <div class="agent"><div class="r">Growth Analyst</div><div class="d">Reads reach, doubles down, boosts or kills, then reloads the plan.</div></div>
+    </div>
+
+    <div class="sp"></div>
+    <div class="grid cards" id="growthcards"></div>
+    <div class="sp"></div>
+    <div id="platstatus" class="note"></div>
+
+    <div class="sp"></div>
+    <div class="card" style="border-color:var(--gold)">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <p class="eyebrow">§ Autopilot</p>
+          <h2 style="font-size:22px;margin:4px 0 6px">One button. Everything.</h2>
+          <p class="note" style="max-width:580px">The growth mastermind pulls all your analytics, studies what is working, then in one click posts a branded <b>Reel to Instagram + YouTube</b> and a <b>3 to 5 minute demo to YouTube</b>, written to win <b>followers and leads</b> (not likes), with trend-aware hooks and strong calls to action. QA-checked, then every local file is deleted. Nothing stored.</p>
+        </div>
+        <div style="text-align:right">
+          <button class="btn" id="autobtn" onclick="runAutopilot()" style="font-size:15px;padding:16px 26px">✦ Grow today</button>
+          <div id="autohint" class="note" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div id="runlog" style="display:none;margin-top:16px;border-top:1px solid var(--line);padding-top:14px"></div>
+    </div>
+
+    <div class="sp"></div>
+    <details>
+      <summary class="mono" style="cursor:pointer;font-size:11px;color:var(--body)">Manual controls (strategy, calendar, analyst) — optional</summary>
+      <div class="sp"></div>
+    <p class="eyebrow">§ 1 · Strategy</p>
+    <div class="card">
+      <label>Campaign goal</label>
+      <input id="g_goal" placeholder="e.g. Explode reach on Reels + Shorts and book 10 demo calls this month" />
+      <div class="sp"></div>
+      <label>Products to promote</label>
+      <div class="flex" id="g_products"></div>
+      <div class="sp"></div>
+      <div class="flex">
+        <div><label>Days</label><input id="g_days" type="number" value="7" style="width:80px"></div>
+        <div><label>Posts / day</label><input id="g_perday" type="number" value="2" style="width:80px"></div>
+        <div style="align-self:flex-end"><button class="btn" id="g_stratbtn" onclick="makeStrategy()">✦ Build strategy</button></div>
+        <span id="g_stratmsg" class="note" style="align-self:flex-end"></span>
+      </div>
+    </div>
+
+    <div class="sp"></div>
+    <div class="flex" style="justify-content:space-between">
+      <p class="eyebrow">§ 2 · Content calendar</p>
+      <div class="flex">
+        <select id="g_campaign" onchange="loadPosts()" style="width:auto"></select>
+        <select id="g_filter" onchange="loadPosts()" style="width:auto">
+          <option value="">All statuses</option><option value="idea">Ideas</option>
+          <option value="drafted">Drafted</option><option value="approved">Approved</option>
+          <option value="scheduled">Scheduled</option><option value="posted">Posted</option>
+        </select>
+        <button class="btn ghost" id="g_genbtn" onclick="generateBatch()">✎ Draft the ideas</button>
+      </div>
+    </div>
+    <p class="note" style="margin:2px 0 12px">"Draft the ideas" runs the Content Creator + SEO agents on the pending ideas. Then generate an image, tweak, and schedule or post each one.</p>
+    <div id="postlist"></div>
+
+    <div class="sp"></div>
+    <p class="eyebrow">§ 3 · Optimize (analyst)</p>
+    <div class="card">
+      <p class="note" style="margin-bottom:10px">After posts go live, add their reach numbers (on each post card), then let the Growth Analyst decide what to double down on, boost, or replace.</p>
+      <div class="flex">
+        <label style="margin:0"><input type="checkbox" id="g_seed" style="width:auto;margin-right:6px">Seed the winning next ideas back into the calendar</label>
+        <button class="btn" onclick="runAdapt()">▲ Analyze &amp; adapt</button>
+        <span id="g_adaptmsg" class="note"></span>
+      </div>
+      <div id="adaptresult"></div>
+    </div>
+    </details>
   </section>
 
   <section id="source" style="display:none">
@@ -237,9 +343,10 @@ async function api(path, opts={}) {
 let CFG = {};
 
 function tab(name){
-  ["dash","source","leads","compose","replies"].forEach(t=>$(t).style.display = t===name?"block":"none");
+  ["dash","growth","source","leads","compose","replies"].forEach(t=>$(t).style.display = t===name?"block":"none");
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
   if(name==="dash") loadStats();
+  if(name==="growth") loadGrowth();
   if(name==="source") loadSource();
   if(name==="leads") loadLeads();
   if(name==="compose") loadCompose();
@@ -411,6 +518,278 @@ async function sendFollowup(id){
   try{ await api(`/replies/${id}/send`,{method:"POST",body:JSON.stringify({subject:$("sub_"+id).value,body:$("body_"+id).value})});
     $("fmsg_"+id).innerHTML=' <span class="ok">✓ sent</span>'; setTimeout(()=>loadReplies(),700);
   }catch(e){ $("fmsg_"+id).textContent=" "+e.message; }
+}
+
+// ================= Growth Studio =================
+let GROWTH = {cfg:null, campaign:null};
+const esc = (s)=> (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+async function loadGrowth(){
+  if(!GROWTH.cfg){
+    GROWTH.cfg = await api("/growth/config");
+    $("g_products").innerHTML = GROWTH.cfg.products.map(p=>
+      `<label style="margin:0;display:flex;align-items:center;gap:6px;color:var(--body)"><input type="checkbox" class="g_pck" value="${p.key}" checked style="width:auto">${p.name}</label>`).join("");
+    const pl = GROWTH.cfg.platforms;
+    const badge=(name,o)=>`<span class="chip ${o.connected?'plat':''}">${name}: ${o.connected?'connected':'manual mode'}</span>`;
+    $("platstatus").innerHTML =
+      badge("Instagram",pl.instagram)+" "+badge("YouTube",pl.youtube)+
+      ` <span class="chip">${pl.auto_post?'auto-post ON':'auto-post off'}</span>`+
+      (!pl.instagram.connected||!pl.youtube.connected
+        ? ` <span class="note">— posts are generated + scheduled; connect a platform in <code>backend/.env</code> to auto-publish, or post them by hand in one tap.</span>`:"");
+  }
+  await Promise.all([loadGrowthStats(), loadCampaigns(), loadAutoStatus()]);
+}
+async function loadAutoStatus(){
+  const st = await api("/growth/autopilot/status");
+  const need=[];
+  if(!st.platforms.instagram.connected) need.push("Instagram");
+  if(!st.platforms.youtube.connected) need.push("YouTube");
+  if(!st.cloudinary_ready) need.push("Cloudinary (for IG video)");
+  const btn=$("autobtn"), hint=$("autohint");
+  if(st.posted_today){ hint.innerHTML='<span class="ok">✓ Today\'s post is already out. Come back tomorrow.</span>'; }
+  else if(need.length){ hint.innerHTML=`Not connected yet: ${need.join(", ")}. <br>It will still build + QA a reel as a dry run.`; }
+  else { hint.innerHTML='<span class="ok">All connected. Ready to post.</span>'; }
+  // resume polling if a run is active
+  const runs = await api("/growth/autopilot/runs");
+  if(runs.length && runs[0].status==="running"){ pollRun(runs[0].id); }
+  else if(runs.length){ renderRunLog(await api("/growth/autopilot/runs/"+runs[0].id)); }
+}
+let POLLING=false;
+async function runAutopilot(){
+  $("autobtn").disabled=true;
+  try{
+    const r=await api("/growth/autopilot/run",{method:"POST",body:JSON.stringify({})});
+    if(!r.ok){
+      if(confirm((r.error||"")+"\n\nForce a run anyway?")){
+        const f=await api("/growth/autopilot/run",{method:"POST",body:JSON.stringify({force:true})});
+        if(f.ok){ pollRun(f.run_id); return; } else { alert(f.error); }
+      }
+      $("autobtn").disabled=false; return;
+    }
+    pollRun(r.run_id);
+  }catch(e){ alert(e.message); $("autobtn").disabled=false; }
+}
+function fmtLevel(l){ return l==="error"?"var(--warn)":l==="warn"?"var(--gold)":"var(--body)"; }
+function renderRunLog(run){
+  const box=$("runlog"); box.style.display="block";
+  const badge = run.status==="running"?'<span class="chip plat">running…</span>'
+    : run.status==="posted"?'<span class="chip" style="background:var(--ok);color:#0C0B08;border-color:transparent">posted</span>'
+    : '<span class="chip" style="background:var(--warn);color:#0C0B08;border-color:transparent">'+run.status+'</span>';
+  box.innerHTML = `<div class="flex" style="justify-content:space-between"><p class="eyebrow">§ Run #${run.id} · ${run.run_date}</p>${badge}</div>`+
+    `<div style="margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.7">`+
+    (run.log||[]).map(e=>`<div style="color:${fmtLevel(e.level)}"><span class="muted">${e.t}</span>  ${esc(e.msg)}</div>`).join("")+
+    `</div>`;
+}
+async function pollRun(id){
+  if(POLLING) return; POLLING=true; $("autobtn").disabled=true;
+  const tick=async()=>{
+    let run; try{ run=await api("/growth/autopilot/runs/"+id); }catch{ POLLING=false; $("autobtn").disabled=false; return; }
+    renderRunLog(run);
+    if(run.status==="running"){ setTimeout(tick,3000); }
+    else{ POLLING=false; $("autobtn").disabled=false; loadGrowthStats(); loadAutoStatus(); }
+  };
+  tick();
+}
+async function loadGrowthStats(){
+  const s = await api("/growth/stats"); const t=s.totals||{};
+  $("growthcards").innerHTML = [
+    ["Reach", t.reach||0],["Impressions", t.impressions||0],["Followers +", t.followers||0],
+    ["Posted", s.posted||0],["Scheduled", s.scheduled||0],["Ideas ready", s.ideas||0],
+  ].map(([l,n])=>`<div class="card"><div class="n">${(+n).toLocaleString()}</div><div class="l">${l}</div></div>`).join("");
+}
+async function loadCampaigns(){
+  const cs = await api("/growth/campaigns");
+  if(!cs.length){ $("g_campaign").innerHTML=`<option value="">No campaign yet</option>`; $("postlist").innerHTML=`<div class="note">Build a strategy above to create your first campaign and content calendar.</div>`; return; }
+  const cur = GROWTH.campaign || cs[0].id; GROWTH.campaign=cur;
+  $("g_campaign").innerHTML = cs.map(c=>{
+    const done=c.counts||{}; const total=Object.values(done).reduce((a,b)=>a+b,0);
+    return `<option value="${c.id}" ${c.id==cur?"selected":""}>${c.name} · ${total} posts</option>`;}).join("");
+  loadPosts();
+}
+const PLATS=["instagram","youtube"], FORMATS=["reel","short","carousel","image","long_video"];
+async function loadPosts(){
+  const cid = +$("g_campaign").value; GROWTH.campaign=cid;
+  const filt = $("g_filter").value;
+  if(!cid){ $("postlist").innerHTML=""; return; }
+  const rows = await api(`/growth/posts?campaign_id=${cid}${filt?`&status=${filt}`:""}`);
+  if(!rows.length){ $("postlist").innerHTML=`<div class="note">No posts match. Try "All statuses" or build a new strategy.</div>`; return; }
+  $("postlist").innerHTML = rows.map(renderPost).join("");
+}
+function renderPost(p){
+  const thumb = p.image_path
+    ? `<img class="thumb" src="${p.image_path}" alt="">`
+    : `<div class="thumb ph">✦</div>`;
+  const line = p.hook || p.notes || "(idea — draft it to write the hook)";
+  return `<div class="pcard" id="pc_${p.id}">
+    <div class="head" onclick="togglePost(${p.id})">
+      ${thumb}
+      <div style="flex:1">
+        <div class="flex" style="gap:6px;margin-bottom:5px">
+          <span class="chip plat">${p.platform}</span>
+          <span class="chip">${p.format}</span>
+          <span class="chip">${GROWTH.cfg.products.find(x=>x.key===p.product)?.name||p.product}</span>
+          <span class="chip st-${p.status}">${p.status}</span>
+          ${p.theme?`<span class="note">· ${esc(p.theme)}</span>`:""}
+        </div>
+        <div class="hk">${esc(line)}</div>
+      </div>
+    </div>
+    <div class="body" id="pb_${p.id}"></div>
+  </div>`;
+}
+let POSTCACHE={};
+async function togglePost(id){
+  const card=$("pc_"+id), body=$("pb_"+id);
+  if(card.classList.contains("open")){ card.classList.remove("open"); return; }
+  card.classList.add("open");
+  const p = await api(`/growth/posts?campaign_id=${GROWTH.campaign}`).then(rs=>rs.find(x=>x.id===id));
+  POSTCACHE[id]=p;
+  body.innerHTML = postDetail(p);
+}
+function postDetail(p){
+  const img = p.image_path?`<img class="big" src="${p.image_path}">`:`<div class="note">No image yet.</div>`;
+  return `
+    <div class="row">
+      <div>
+        <label>Hook</label><input id="f_hook_${p.id}" value="${esc(p.hook)}">
+        <div class="sp"></div>
+        <label>${p.platform==="youtube"?"Title":"Label / title"}</label><input id="f_title_${p.id}" value="${esc(p.title)}">
+        <div class="sp"></div>
+        <label>Caption</label><textarea id="f_cap_${p.id}" rows="5">${esc(p.caption)}</textarea>
+        <div class="sp"></div>
+        <label>Hashtags</label><textarea id="f_tags_${p.id}" rows="2">${esc(p.hashtags)}</textarea>
+      </div>
+      <div>
+        <label>Visual</label>${img}
+        <div class="sp"></div>
+        <button class="btn ghost" onclick="genImage(${p.id})">✦ Generate image</button>
+        <div class="sp"></div>
+        <label>Script / storyboard</label>
+        <pre class="script">${esc(p.script)||"(draft the idea to generate a script)"}</pre>
+        ${p.best_time?`<div class="note" style="margin-top:6px">Best time: ${esc(p.best_time)}</div>`:""}
+        ${p.notes?`<div class="note">${esc(p.notes)}</div>`:""}
+      </div>
+    </div>
+    <div class="sp"></div>
+    <div class="flex" style="border-top:1px solid var(--line);padding-top:12px">
+      <button class="btn ghost" onclick="savePost(${p.id})">Save edits</button>
+      <button class="btn ghost" onclick="setPostStatus(${p.id},'approved')">Approve</button>
+      <input id="f_sched_${p.id}" type="datetime-local" style="width:auto" value="${(p.scheduled_at||'').replace(' ','T').slice(0,16)}">
+      <button class="btn ghost" onclick="schedulePost(${p.id})">Schedule</button>
+      <button class="btn" onclick="publishPost(${p.id})">Publish now</button>
+      <span id="pmsg_${p.id}" class="note"></span>
+    </div>
+    ${p.external_url?`<div class="note" style="margin-top:8px">Live: <a href="${p.external_url}" target="_blank">${esc(p.external_url)}</a></div>`:""}
+    <div class="sp"></div>
+    <details><summary class="mono" style="cursor:pointer;font-size:10px;color:var(--body)">Record reach / metrics</summary>
+      <div class="sp"></div>
+      <div class="metgrid">
+        ${["reach","impressions","likes","comments","shares","saves","views","followers_delta"].map(k=>
+          `<div><label>${k.replace('_',' ')}</label><input id="m_${k}_${p.id}" type="number" value="0"></div>`).join("")}
+      </div>
+      <div class="sp"></div>
+      <button class="btn ghost" onclick="saveMetrics(${p.id})">Save metrics</button>
+      <span id="mmsg_${p.id}" class="note"></span>
+    </details>`;
+}
+function selectedProducts(){ return [...document.querySelectorAll(".g_pck:checked")].map(x=>x.value); }
+async function makeStrategy(){
+  const products=selectedProducts(); if(!products.length){alert("Pick at least one product");return;}
+  $("g_stratbtn").disabled=true; $("g_stratmsg").textContent=" the strategist is planning…";
+  try{
+    const r=await api("/growth/strategy",{method:"POST",body:JSON.stringify({
+      goal:$("g_goal").value, products, days:+$("g_days").value, per_day:+$("g_perday").value})});
+    GROWTH.campaign=r.campaign_id;
+    $("g_stratmsg").innerHTML=` <span class="ok">✓ ${r.slots} slots planned</span>`;
+    await loadGrowthStats(); await loadCampaigns();
+  }catch(e){ $("g_stratmsg").textContent=" "+e.message; }
+  $("g_stratbtn").disabled=false;
+}
+async function generateBatch(){
+  if(!GROWTH.campaign){alert("Build a strategy first");return;}
+  $("g_genbtn").disabled=true; $("g_stratmsg").textContent="";
+  const b=$("g_genbtn"); b.textContent=" drafting (creator + SEO)…";
+  try{
+    const r=await api("/growth/posts/generate",{method:"POST",body:JSON.stringify({campaign_id:GROWTH.campaign,limit:8})});
+    b.textContent=`✎ Draft the ideas`;
+    await loadPosts(); await loadGrowthStats();
+    if(r.failed) alert(`Drafted ${r.drafted}, ${r.failed} failed (check the API key / model).`);
+  }catch(e){ alert(e.message); b.textContent=`✎ Draft the ideas`; }
+  $("g_genbtn").disabled=false;
+}
+async function genImage(id){
+  const btn=event.target; btn.disabled=true; const t=btn.textContent; btn.textContent=" designing…";
+  try{ const r=await api(`/growth/posts/${id}/image`,{method:"POST"});
+    POSTCACHE[id].image_path=r.image_path; $("pb_"+id).innerHTML=postDetail(POSTCACHE[id]);
+  }catch(e){ alert(e.message); btn.textContent=t; btn.disabled=false; }
+}
+function collectPost(id){ return {
+  hook:$("f_hook_"+id).value, title:$("f_title_"+id).value,
+  caption:$("f_cap_"+id).value, hashtags:$("f_tags_"+id).value }; }
+async function savePost(id){
+  await api(`/growth/posts/${id}`,{method:"PATCH",body:JSON.stringify(collectPost(id))});
+  $("pmsg_"+id).innerHTML=' <span class="ok">saved</span>'; Object.assign(POSTCACHE[id],collectPost(id));
+}
+async function setPostStatus(id,status){
+  await api(`/growth/posts/${id}`,{method:"PATCH",body:JSON.stringify({...collectPost(id),status})});
+  $("pmsg_"+id).innerHTML=` <span class="ok">${status}</span>`; loadGrowthStats();
+}
+async function schedulePost(id){
+  const v=$("f_sched_"+id).value; if(!v){alert("Pick a date/time");return;}
+  await api(`/growth/posts/${id}`,{method:"PATCH",body:JSON.stringify({...collectPost(id),status:"scheduled",scheduled_at:v.replace('T',' ')+":00"})});
+  $("pmsg_"+id).innerHTML=' <span class="ok">scheduled</span>'; loadGrowthStats();
+}
+async function publishPost(id){
+  await savePost(id);
+  $("pmsg_"+id).textContent=" publishing…";
+  try{
+    const r=await api(`/growth/posts/${id}/publish`,{method:"POST"});
+    if(r.posted){ $("pmsg_"+id).innerHTML=` <span class="ok">✓ live</span> <a href="${r.external_url}" target="_blank">open</a>`; loadPosts(); loadGrowthStats(); return; }
+    // manual pack
+    manualPack(id,r);
+  }catch(e){ $("pmsg_"+id).textContent=" "+e.message; }
+}
+function manualPack(id,r){
+  const box=$("pmsg_"+id);
+  box.innerHTML=` <span class="warn">${r.platform} not auto-connected.</span> `+
+    `<button class="btn ghost" onclick="copyCaption(${id})">Copy caption+tags</button> `+
+    (r.image_path?`<a class="btn ghost" href="${r.image_path}" download style="text-decoration:none">Download image</a> `:"")+
+    `<button class="btn ghost" onclick="confirmPosted(${id})">I posted it →</button>`;
+}
+async function copyCaption(id){
+  const p=POSTCACHE[id]; const txt=(p.caption||"")+"\n\n"+(p.hashtags||"");
+  try{ await navigator.clipboard.writeText(txt); }catch{}
+  $("pmsg_"+id).innerHTML=' <span class="ok">copied — paste it in the app</span>';
+}
+async function confirmPosted(id){
+  const url=prompt("Paste the live post URL (optional):")||"";
+  await api(`/growth/posts/${id}/posted`,{method:"POST",body:JSON.stringify({external_url:url})});
+  loadPosts(); loadGrowthStats();
+}
+async function saveMetrics(id){
+  const keys=["reach","impressions","likes","comments","shares","saves","views","followers_delta"];
+  const b={}; keys.forEach(k=>b[k]=+($("m_"+k+"_"+id).value||0));
+  await api(`/growth/posts/${id}/metrics`,{method:"POST",body:JSON.stringify(b)});
+  $("mmsg_"+id).innerHTML=' <span class="ok">saved</span>'; loadGrowthStats();
+}
+async function runAdapt(){
+  $("g_adaptmsg").textContent=" analyst reviewing reach…";
+  try{
+    const r=await api("/growth/adapt",{method:"POST",body:JSON.stringify({campaign_id:GROWTH.campaign,seed_next:$("g_seed").checked})});
+    $("g_adaptmsg").textContent = r.seeded_ideas?` +${r.seeded_ideas} new ideas seeded`:"";
+    $("adaptresult").innerHTML = `
+      <div class="adaptbox">
+        <p class="eyebrow">§ Analyst summary</p>
+        <p style="color:var(--ink);margin:6px 0 12px">${esc(r.summary||"")}</p>
+        ${(r.verdicts||[]).length?`<p class="eyebrow">§ Per-post verdicts</p><div style="margin:6px 0 12px">${
+          r.verdicts.map(v=>`<div class="note">#${v.post_id} · <b style="color:var(--goldl)">${v.action}</b> — ${esc(v.why)}</div>`).join("")}</div>`:""}
+        ${(r.winning_pillars||[]).length?`<p class="note">Winning angles: ${r.winning_pillars.map(esc).join(", ")}</p>`:""}
+        ${r.boost_budget_tip?`<p class="note" style="margin-top:8px">Boost: ${esc(r.boost_budget_tip)}</p>`:""}
+        ${(r.next_ideas||[]).length?`<div class="sp"></div><p class="eyebrow">§ Next ideas</p>${
+          r.next_ideas.map(i=>`<div class="note">${i.platform}/${i.format} · ${i.product} — ${esc(i.hook_angle||i.pillar||"")}</div>`).join("")}`:""}
+      </div>`;
+    if($("g_seed").checked){ loadPosts(); loadGrowthStats(); }
+  }catch(e){ $("g_adaptmsg").textContent=" "+e.message; }
 }
 
 loadConfig().then(loadStats);
