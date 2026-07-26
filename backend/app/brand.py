@@ -14,7 +14,21 @@ log = logging.getLogger("praxia.brand")
 
 BRAND_DIR = Path(__file__).resolve().parent / "static" / "brand"
 SHOTS_DIR = BRAND_DIR / "shots"
-WEB_DIR = Path(r"C:\Users\Prince.Choudhary\praxia-studios-website")
+
+# Portable: PRAXIA_WEBSITE_DIR env wins; else the praxia-studios-website repo cloned as a sibling
+# of this repo; else the original dev path. Brand assets are also cached in BRAND_DIR after first run.
+def _find_web_dir() -> Path:
+    import os
+    env = os.getenv("PRAXIA_WEBSITE_DIR")
+    if env and Path(env).exists():
+        return Path(env)
+    repo_root = Path(__file__).resolve().parents[3]      # .../praxia-marketing
+    sibling = repo_root.parent / "praxia-studios-website"
+    if sibling.exists():
+        return sibling
+    return Path(r"C:\Users\Prince.Choudhary\praxia-studios-website")
+
+WEB_DIR = _find_web_dir()
 WEB_IMG = WEB_DIR / "assets" / "img"
 
 MARK = BRAND_DIR / "mark.png"          # transparent spark mark (corner watermark)

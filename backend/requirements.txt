@@ -3,3 +3,8 @@ uvicorn[standard]
 openai
 python-dotenv
 httpx
+# Growth Studio: reels + demos (video) and real product screenshots
+pillow
+moviepy
+imageio-ffmpeg
+playwright
