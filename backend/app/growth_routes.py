@@ -40,7 +40,8 @@ def growth_config():
 # ------------------------------------------------------------- autopilot ----
 @router.post("/autopilot/run")
 def autopilot_run(payload: dict | None = None):
-    return autopilot.run_today(force=bool((payload or {}).get("force")))
+    p = payload or {}
+    return autopilot.run_today(force=bool(p.get("force")), reels_only=bool(p.get("reels_only")))
 
 
 @router.get("/autopilot/status")
@@ -53,6 +54,28 @@ def autopilot_status():
         "pexels_ready": s.pexels_ready,
         "ready_to_post": s.instagram_ready or s.youtube_ready,
     }
+
+
+@router.get("/targets")
+def get_targets():
+    return {"targets": autopilot.get_targets(), "achieved": autopilot.achieved()}
+
+
+@router.post("/targets")
+def set_targets(payload: dict):
+    fields = {k: int(payload.get(k) or 0) for k in
+              ["followers_per_day", "likes_per_post", "reach_per_post", "impressions_per_post"]}
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO targets(followers_per_day,likes_per_post,reach_per_post,impressions_per_post) "
+            "VALUES (?,?,?,?)",
+            (fields["followers_per_day"], fields["likes_per_post"],
+             fields["reach_per_post"], fields["impressions_per_post"]))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "targets": autopilot.get_targets()}
 
 
 @router.get("/autopilot/runs")

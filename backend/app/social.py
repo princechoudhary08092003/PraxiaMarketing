@@ -101,6 +101,49 @@ def publish_instagram(caption: str, image_web_path: str) -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def publish_image_url(caption: str, image_url: str) -> dict:
+    """Publish a single static image to Instagram from a PUBLIC image URL (Cloudinary pass-through)."""
+    s = get_settings()
+    if not s.instagram_ready:
+        return {"ok": False, "error": "Instagram not connected."}
+    if not image_url:
+        return {"ok": False, "error": "No public image URL to publish."}
+    try:
+        with httpx.Client(timeout=90) as c:
+            create = c.post(f"{_graph()}/{s.ig_user_id}/media",
+                            data={"image_url": image_url, "caption": caption,
+                                  "access_token": s.ig_access_token})
+            create.raise_for_status()
+            container = create.json().get("id")
+            if not container:
+                return {"ok": False, "error": f"No container: {create.text[:300]}"}
+            # wait until Instagram has finished ingesting the image before publishing
+            for _ in range(12):
+                st = c.get(f"{_graph()}/{container}",
+                           params={"fields": "status_code", "access_token": s.ig_access_token})
+                if (st.json() or {}).get("status_code") == "FINISHED":
+                    break
+                time.sleep(3)
+            # publish, retrying a couple times if IG still reports the media as not yet available
+            media_id, last = None, ""
+            for _ in range(4):
+                pub = c.post(f"{_graph()}/{s.ig_user_id}/media_publish",
+                             data={"creation_id": container, "access_token": s.ig_access_token})
+                if pub.status_code == 200 and pub.json().get("id"):
+                    media_id = pub.json()["id"]
+                    break
+                last = pub.text[:300]
+                time.sleep(4)
+            if not media_id:
+                return {"ok": False, "error": f"Instagram API: {last}"}
+        return {"ok": True, "media_id": media_id,
+                "external_url": f"https://www.instagram.com/p/{media_id}"}
+    except httpx.HTTPStatusError as e:
+        return {"ok": False, "error": f"Instagram API: {e.response.text[:300]}"}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 def publish_reel(caption: str, video_url: str) -> dict:
     """Publish a Reel to Instagram from a PUBLIC video URL (the throwaway Cloudinary link).
     Creates a REELS container, waits for Instagram to finish processing, then publishes."""

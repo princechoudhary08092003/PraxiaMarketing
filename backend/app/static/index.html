@@ -144,14 +144,36 @@
         <div>
           <p class="eyebrow">§ Autopilot</p>
           <h2 style="font-size:22px;margin:4px 0 6px">One button. Everything.</h2>
-          <p class="note" style="max-width:580px">The growth mastermind pulls all your analytics, studies what is working, then in one click posts a branded <b>Reel to Instagram + YouTube</b> and a <b>3 to 5 minute demo to YouTube</b>, written to win <b>followers and leads</b> (not likes), with trend-aware hooks and strong calls to action. QA-checked, then every local file is deleted. Nothing stored.</p>
+          <p class="note" style="max-width:580px">The mastermind pulls your analytics, then in one click posts a faceless <b>meme-hook Reel</b> (Instagram + YouTube Short) and a minimal <b>static product post</b>, each day a different meme, topic, style and product. "Full" also adds a <b>3-5 min YouTube demo</b>. Built for <b>followers + leads</b>, QA-checked, every local file deleted after.</p>
         </div>
         <div style="text-align:right">
-          <button class="btn" id="autobtn" onclick="runAutopilot()" style="font-size:15px;padding:16px 26px">✦ Grow today</button>
+          <button class="btn" id="autobtn" onclick="runAutopilot(false)" style="font-size:15px;padding:16px 26px">✦ Grow today (full)</button>
+          <div class="sp" style="height:8px"></div>
+          <button class="btn ghost" id="autobtn2" onclick="runAutopilot(true)" style="font-size:13px;padding:11px 18px">⚡ Reels + Short only</button>
           <div id="autohint" class="note" style="margin-top:8px"></div>
         </div>
       </div>
       <div id="runlog" style="display:none;margin-top:16px;border-top:1px solid var(--line);padding-top:14px"></div>
+    </div>
+
+    <div class="sp"></div>
+    <p class="eyebrow">§ Targets vs achieved</p>
+    <div class="card">
+      <p class="note" style="margin-bottom:10px">Set your daily goals. The engine grades itself against these after every run and adapts.</p>
+      <div class="grid cards" id="targetcards"></div>
+      <div class="sp"></div>
+      <details>
+        <summary class="mono" style="cursor:pointer;font-size:10px;color:var(--body)">Edit targets</summary>
+        <div class="sp"></div>
+        <div class="flex">
+          <div><label>Followers / day</label><input id="t_followers" type="number" style="width:120px"></div>
+          <div><label>Likes / post</label><input id="t_likes" type="number" style="width:120px"></div>
+          <div><label>Reach / post</label><input id="t_reach" type="number" style="width:120px"></div>
+          <div><label>Impressions / post</label><input id="t_impr" type="number" style="width:130px"></div>
+          <div style="align-self:flex-end"><button class="btn ghost" onclick="saveTargets()">Save targets</button></div>
+          <span id="t_msg" class="note" style="align-self:flex-end"></span>
+        </div>
+      </details>
     </div>
 
     <div class="sp"></div>
@@ -213,7 +235,7 @@
       <textarea id="s_domains" rows="4" placeholder="iimb.ac.in&#10;christuniversity.in&#10;amity.edu"></textarea>
       <div class="sp"></div>
       <div class="flex">
-        <select id="s_country"><option>India</option><option>Global</option></select>
+        <select id="s_country"><option>India</option><option>USA</option><option>UK</option><option>Global</option></select>
         <select id="s_type"><option>university</option><option>college</option><option value="l&d">L&D</option><option>corporate</option></select>
         <button class="btn" onclick="harvest()">Harvest emails</button>
         <span id="s_msg" class="note"></span>
@@ -225,7 +247,7 @@
         <label>Harvest from built‑in directory</label>
         <p class="note" style="margin-bottom:8px">Scan our starter list of institutions.</p>
         <div class="flex">
-          <select id="d_country"><option value="">Any region</option><option>India</option><option>Global</option></select>
+          <select id="d_country"><option value="">Any region</option><option>India</option><option>USA</option><option>UK</option><option>Global</option></select>
           <input id="d_limit" type="number" value="8" style="width:80px" title="how many institutions" />
           <button class="btn ghost" onclick="harvestSeed()">Scan directory</button>
         </div>
@@ -267,15 +289,15 @@
       <div class="sp"></div>
       <div class="flex">
         <select id="l_type"><option>university</option><option>college</option><option value="l&d">L&D</option><option>corporate</option><option>other</option></select>
-        <select id="l_country"><option>India</option><option>Global</option></select>
+        <select id="l_country"><option>India</option><option>USA</option><option>UK</option><option>Global</option></select>
         <button class="btn" onclick="addLead()">Add lead</button>
       </div>
     </div>
     <div class="sp"></div>
     <details class="card">
-      <summary class="mono" style="cursor:pointer;font-size:11px;color:var(--body)">Import CSV (paste)</summary>
-      <p class="note" style="margin:8px 0">Header row, e.g.: <code>name,org,org_type,country,title,email,linkedin_url,phone</code></p>
-      <textarea id="csv" rows="5" placeholder="name,org,org_type,country,title,email&#10;Dr Rao,IIM Indore,university,India,Dean,rao@iimidr.ac.in"></textarea>
+      <summary class="mono" style="cursor:pointer;font-size:11px;color:var(--body)">Import leads CSV (Apollo / LeadVault / SphereScout / LinkedIn export)</summary>
+      <p class="note" style="margin:8px 0">Paste a CSV exported from your lead tool. It auto-maps columns like <code>First Name, Last Name, Title, Company, Email, Company Phone, Person Linkedin Url, # Employees, Website</code>, dedups by email, and tags them with your current vertical.</p>
+      <textarea id="csv" rows="5" placeholder="First Name,Last Name,Title,Company,Email,# Employees,Website&#10;Sarah,Lee,Director of L&D,Acme Corp,sarah@acme.com,1200,acme.com"></textarea>
       <div class="sp"></div>
       <button class="btn ghost" onclick="importCsv()">Import</button>
       <span id="csvmsg" class="note"></span>
@@ -286,8 +308,18 @@
   </section>
 
   <section id="compose" style="display:none">
-    <p class="eyebrow">§ Compose</p>
-    <h2>AI‑personalized outreach</h2>
+    <p class="eyebrow">§ Outreach</p>
+    <h2>Cold email, follow-up &amp; calls</h2>
+    <div id="icpbar" class="card" style="margin-bottom:14px">
+      <div class="flex" style="justify-content:space-between">
+        <div><label>Target vertical (ICP)</label><div id="icpname" style="color:var(--ink)">…</div></div>
+        <div class="flex">
+          <select id="icpsel" onchange="setIcp()"></select>
+          <button class="btn ghost" onclick="loadStrategy()">▲ AI strategy review</button>
+        </div>
+      </div>
+      <div id="strategybox"></div>
+    </div>
     <div class="card">
       <div class="row">
         <div><label>Lead</label><select id="c_lead"></select></div>
@@ -295,9 +327,12 @@
       </div>
       <div class="sp"></div>
       <div class="flex">
-        <button class="btn ghost" onclick="loadFirstTouch()">✉ Load first‑touch email</button>
-        <button class="btn ghost" id="genbtn" onclick="genDraft()">✦ Generate (AI‑personalized)</button>
+        <button class="btn ghost" id="coldbtn" onclick="genCold()">✦ Cold email (ICP)</button>
+        <button class="btn ghost" id="fubtn" onclick="genFollowupSeq()">↻ Next follow-up</button>
+        <button class="btn ghost" onclick="genCallScript()">☎ Call script</button>
+        <button class="btn ghost" onclick="loadFirstTouch()">✉ First-touch</button>
       </div>
+      <div id="callbox"></div>
       <div class="sp"></div>
       <label>Subject</label>
       <input id="c_subject" placeholder="Subject line" />
@@ -311,8 +346,16 @@
       </div>
       <div class="sp"></div>
       <div class="flex" style="border-top:1px solid var(--line);padding-top:14px">
+        <label style="margin:0">Log a call:</label>
+        <select id="calloutcome" style="width:auto"><option value="no_answer">No answer</option><option value="voicemail">Voicemail</option><option value="gatekeeper">Gatekeeper</option><option value="not_interested">Not interested</option><option value="callback">Call back later</option><option value="booked">Booked demo</option></select>
+        <input id="callnotes" placeholder="notes" style="width:200px" />
+        <button class="btn ghost" onclick="logCall()">Save call</button>
+        <span id="callmsg" class="note"></span>
+      </div>
+      <div class="sp"></div>
+      <div class="flex" style="border-top:1px solid var(--line);padding-top:14px">
         <button class="btn ghost" onclick="sendAllFirst()">Send first‑touch to all NEW leads</button>
-        <span class="note">Fixed template, personalized per lead. Go slow on volume.</span>
+        <span class="note">Go slow on volume to protect deliverability.</span>
       </div>
     </div>
   </section>
@@ -408,9 +451,61 @@ async function importCsv(){
 }
 
 async function loadCompose(){
-  const [leads,tpls] = await Promise.all([api("/leads"),api("/templates")]);
+  const [leads,tpls,icp] = await Promise.all([api("/leads"),api("/templates"),api("/icp")]);
   $("c_lead").innerHTML = leads.map(l=>`<option value="${l.id}">${(l.org||l.name||"lead")} — ${l.email||"no email"} (${l.country})</option>`).join("");
   $("c_tpl").innerHTML = `<option value="">Auto (by region)</option>`+tpls.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+  $("icpname").textContent = icp.current.name;
+  $("icpsel").innerHTML = icp.options.map(o=>`<option value="${o.key}" ${o.key===icp.current.key?"selected":""}>${o.name}</option>`).join("");
+}
+async function setIcp(){ await api("/icp",{method:"POST",body:JSON.stringify({key:$("icpsel").value})}); loadCompose(); }
+function _cl(){ return +$("c_lead").value; }
+async function genCold(){
+  const id=_cl(); if(!id){alert("Pick a lead");return;}
+  $("coldbtn").disabled=true; $("composemsg").textContent=" writing cold email…";
+  try{ const d=await api(`/leads/${id}/cold-email`,{method:"POST"});
+    $("c_subject").value=d.subject; $("c_body").value=d.body; $("composemsg").textContent="";
+  }catch(e){ $("composemsg").textContent=" "+e.message; }
+  $("coldbtn").disabled=false;
+}
+async function genFollowupSeq(){
+  const id=_cl(); if(!id){alert("Pick a lead");return;}
+  $("fubtn").disabled=true; $("composemsg").textContent=" writing follow-up…";
+  try{ const d=await api(`/leads/${id}/followup`,{method:"POST",body:JSON.stringify({last_subject:$("c_subject").value})});
+    $("c_subject").value=d.subject; $("c_body").value=d.body;
+    $("composemsg").innerHTML=` <span class="note">follow-up step ${d.step} (${d.kind})</span>`;
+  }catch(e){ $("composemsg").textContent=" "+e.message; }
+  $("fubtn").disabled=false;
+}
+async function genCallScript(){
+  const id=_cl(); if(!id){alert("Pick a lead");return;}
+  $("callbox").innerHTML=`<div class="note" style="margin-top:10px">generating call script…</div>`;
+  try{ const s=await api(`/leads/${id}/call-script`,{method:"POST"});
+    $("callbox").innerHTML=`<div class="adaptbox" style="margin-top:12px">
+      <p class="eyebrow">§ Call script</p>
+      <div style="margin:6px 0"><b class="ok">Opener:</b> ${esc(s.opener||"")}</div>
+      <div style="margin:6px 0"><b class="ok">Pitch:</b> ${esc(s.pitch||"")}</div>
+      ${(s.objections||[]).map(o=>`<div class="note" style="margin:4px 0"><b>“${esc(o.objection||"")}”</b> → ${esc(o.response||"")}</div>`).join("")}
+      <div style="margin:6px 0"><b class="ok">Gatekeeper:</b> ${esc(s.gatekeeper||"")}</div>
+      <div style="margin:6px 0"><b class="ok">Voicemail:</b> ${esc(s.voicemail||"")}</div></div>`;
+  }catch(e){ $("callbox").innerHTML=`<div class="note">${e.message}</div>`; }
+}
+async function logCall(){
+  const id=_cl(); if(!id){alert("Pick a lead");return;}
+  $("callmsg").textContent=" saving…";
+  try{ await api(`/leads/${id}/log-call`,{method:"POST",body:JSON.stringify({outcome:$("calloutcome").value,notes:$("callnotes").value})});
+    $("callmsg").innerHTML=' <span class="ok">logged</span>'; $("callnotes").value="";
+  }catch(e){ $("callmsg").textContent=" "+e.message; }
+}
+async function loadStrategy(){
+  $("strategybox").innerHTML=`<div class="note" style="margin-top:10px">analyzing your campaign…</div>`;
+  try{ const d=await api("/sales/strategy"); const r=d.review||{};
+    $("strategybox").innerHTML=`<div class="adaptbox" style="margin-top:12px">
+      <p style="color:var(--ink)">${esc(r.diagnosis||"")}</p>
+      <div class="note" style="margin-top:8px"><b>Targeting:</b> ${esc(r.fix_targeting||"")}</div>
+      <div class="note"><b>Message:</b> ${esc(r.fix_message||"")}</div>
+      <div class="note"><b>Cadence:</b> ${esc(r.fix_cadence||"")}</div>
+      <div class="note"><b>Test this week:</b> ${esc(r.next_experiment||"")}</div></div>`;
+  }catch(e){ $("strategybox").innerHTML=`<div class="note">${e.message}</div>`; }
 }
 async function genDraft(){
   const lead_id=+$("c_lead").value; const template_id=$("c_tpl").value?+$("c_tpl").value:null;
@@ -537,7 +632,31 @@ async function loadGrowth(){
       (!pl.instagram.connected||!pl.youtube.connected
         ? ` <span class="note">— posts are generated + scheduled; connect a platform in <code>backend/.env</code> to auto-publish, or post them by hand in one tap.</span>`:"");
   }
-  await Promise.all([loadGrowthStats(), loadCampaigns(), loadAutoStatus()]);
+  await Promise.all([loadGrowthStats(), loadCampaigns(), loadAutoStatus(), loadTargets()]);
+}
+async function loadTargets(){
+  const d = await api("/growth/targets"); const t=d.targets||{}, a=d.achieved||{};
+  const rows = [
+    ["Followers", a.followers||0, t.followers_per_day||0, "/day"],
+    ["Best reach", a.best_reach||0, t.reach_per_post||0, "/post"],
+    ["Best likes", a.best_likes||0, t.likes_per_post||0, "/post"],
+    ["Impressions", a.impressions||0, t.impressions_per_post||0, "total"],
+  ];
+  $("targetcards").innerHTML = rows.map(([l,got,want,u])=>{
+    const hit = want>0 && got>=want; const col = hit?"var(--ok)":"var(--gold)";
+    return `<div class="card"><div class="n" style="color:${col}">${(+got).toLocaleString()}</div>`+
+      `<div class="l">${l} <span class="muted">/ target ${(+want).toLocaleString()} ${u}</span></div></div>`;
+  }).join("");
+  $("t_followers").value=t.followers_per_day||0; $("t_likes").value=t.likes_per_post||0;
+  $("t_reach").value=t.reach_per_post||0; $("t_impr").value=t.impressions_per_post||0;
+}
+async function saveTargets(){
+  $("t_msg").textContent=" saving…";
+  try{ await api("/growth/targets",{method:"POST",body:JSON.stringify({
+    followers_per_day:+$("t_followers").value, likes_per_post:+$("t_likes").value,
+    reach_per_post:+$("t_reach").value, impressions_per_post:+$("t_impr").value})});
+    $("t_msg").innerHTML=' <span class="ok">saved</span>'; loadTargets();
+  }catch(e){ $("t_msg").textContent=" "+e.message; }
 }
 async function loadAutoStatus(){
   const st = await api("/growth/autopilot/status");
@@ -555,19 +674,20 @@ async function loadAutoStatus(){
   else if(runs.length){ renderRunLog(await api("/growth/autopilot/runs/"+runs[0].id)); }
 }
 let POLLING=false;
-async function runAutopilot(){
-  $("autobtn").disabled=true;
+async function runAutopilot(reelsOnly){
+  $("autobtn").disabled=true; $("autobtn2").disabled=true;
+  const body={reels_only:!!reelsOnly};
   try{
-    const r=await api("/growth/autopilot/run",{method:"POST",body:JSON.stringify({})});
+    const r=await api("/growth/autopilot/run",{method:"POST",body:JSON.stringify(body)});
     if(!r.ok){
       if(confirm((r.error||"")+"\n\nForce a run anyway?")){
-        const f=await api("/growth/autopilot/run",{method:"POST",body:JSON.stringify({force:true})});
+        const f=await api("/growth/autopilot/run",{method:"POST",body:JSON.stringify({...body,force:true})});
         if(f.ok){ pollRun(f.run_id); return; } else { alert(f.error); }
       }
-      $("autobtn").disabled=false; return;
+      $("autobtn").disabled=false; $("autobtn2").disabled=false; return;
     }
     pollRun(r.run_id);
-  }catch(e){ alert(e.message); $("autobtn").disabled=false; }
+  }catch(e){ alert(e.message); $("autobtn").disabled=false; $("autobtn2").disabled=false; }
 }
 function fmtLevel(l){ return l==="error"?"var(--warn)":l==="warn"?"var(--gold)":"var(--body)"; }
 function renderRunLog(run){
@@ -581,12 +701,13 @@ function renderRunLog(run){
     `</div>`;
 }
 async function pollRun(id){
-  if(POLLING) return; POLLING=true; $("autobtn").disabled=true;
+  if(POLLING) return; POLLING=true; $("autobtn").disabled=true; $("autobtn2").disabled=true;
+  const done=()=>{ $("autobtn").disabled=false; $("autobtn2").disabled=false; };
   const tick=async()=>{
-    let run; try{ run=await api("/growth/autopilot/runs/"+id); }catch{ POLLING=false; $("autobtn").disabled=false; return; }
+    let run; try{ run=await api("/growth/autopilot/runs/"+id); }catch{ POLLING=false; done(); return; }
     renderRunLog(run);
     if(run.status==="running"){ setTimeout(tick,3000); }
-    else{ POLLING=false; $("autobtn").disabled=false; loadGrowthStats(); loadAutoStatus(); }
+    else{ POLLING=false; done(); loadGrowthStats(); loadAutoStatus(); loadTargets(); }
   };
   tick();
 }

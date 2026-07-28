@@ -18,7 +18,7 @@ from pathlib import Path
 import imageio_ffmpeg
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from . import brand, pexels
+from . import brand, memes, mockups, pexels
 from .config import get_settings
 from .growth import _client
 
@@ -221,9 +221,9 @@ def _ass_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def _captions_ass(timing: list[tuple], path: str) -> bool:
+def _captions_ass(timing: list[tuple], path: str, primary: str = "&H00FFFFFF") -> bool:
     """Build captions from the SCRIPT text (exact), timed within each beat's speech window.
-    timing: [(start_sec, speech_sec, narration_text)] excluding card-only beats without narration."""
+    timing: [(start_sec, speech_sec, narration_text)]. primary = ASS colour (BGR hex)."""
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
@@ -232,7 +232,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap, Arial, 64, &H00FFFFFF, &H00000000, &H64000000, -1, 6, 2, 2, 80, 80, 300, 1
+Style: Cap, Arial, 44, {primary}, &H00000000, &H64000000, -1, 3, 1, 2, 120, 120, 230, 1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -244,7 +244,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         words = [w for w in (text or "").split() if w]
         if not words or secs <= 0:
             continue
-        chunks = [words[i:i + 3] for i in range(0, len(words), 3)]
+        chunks = [words[i:i + 2] for i in range(0, len(words), 2)]
         total = sum(len(" ".join(c)) for c in chunks) or 1
         t = start
         for c in chunks:
@@ -319,3 +319,207 @@ def build_reel(spec: dict, workdir: str) -> dict:
             log.warning("caption burn failed (%s); posting without captions", e)
     return {"path": str(wd / final), "seconds": round(total, 1), "segments": len(clips),
             "narration": " ".join(narration)}
+
+
+# ==================================================== FACELESS BUILD-REEL (v4) ==
+STYLE_CAPTION = {"cinematic": "&H00FFFFFF", "stock": "&H00FFFFFF",
+                 "bold_type": "&H0087CBE4", "duotone": "&H00FFFFFF"}  # BGR; gold for bold_type
+
+
+def _meme_segment(meme: dict, dst: str, used_ids, seed: int) -> dict:
+    """Render a real captioned meme centered on black, with a small watermark. Returns meme info."""
+    tmp = dst + ".meme.png"
+    info = memes.render_meme(meme.get("top", ""), meme.get("bottom", ""), tmp,
+                             used_ids=used_ids, seed=seed)
+    if not info.get("ok"):
+        # network blip / no template: fall back to a bold text hook so the opener is never blank
+        hook_txt = (meme.get("top", "") + " " + meme.get("bottom", "")).strip() or "Stop doing this by hand"
+        _hook_card(dst, hook_txt)
+        return info
+    m = Image.open(tmp).convert("RGB")
+    tw = W - 40
+    th = int(m.size[1] * tw / m.size[0])
+    m = m.resize((tw, th), Image.LANCZOS)
+    canvas = Image.new("RGB", (W, H), (8, 8, 8))
+    canvas.paste(m, ((W - tw) // 2, (H - th) // 2))
+    Path(tmp).unlink(missing_ok=True)
+    _watermark(canvas)
+    canvas.save(dst, "PNG")
+    return info
+
+
+def _result_card(dst: str, big: str, label: str) -> None:
+    bg = _brand_bg(); d = ImageDraw.Draw(bg)
+    nf = _font(FONT_BOLD, 300)
+    big = (big or "10x")[:6]
+    d.text(((W - d.textlength(big, font=nf)) / 2, H * 0.30), big, font=nf, fill=GOLD)
+    lf = _font(FONT_BOLD, 54)
+    for i, ln in enumerate(_wrap(d, (label or "faster").upper(), lf, W - 160)[:2]):
+        d.text(((W - d.textlength(ln, font=lf)) / 2, H * 0.56 + i * 64), ln, font=lf, fill=INK)
+    _watermark(bg); bg.save(dst, "PNG")
+
+
+def _mockup_frame(spec: dict, dst: str, label: str, wd: str) -> None:
+    shot = str(Path(wd) / "mock.png")
+    r = mockups.render_mockup(spec, shot)
+    if r.get("ok"):
+        _product_frame(shot, dst, label)
+        Path(shot).unlink(missing_ok=True)
+    else:
+        _hook_card(dst, label)
+
+
+def _motion_vf(transition: str, frames: int) -> str:
+    base = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+    z = {"zoompunch": "zoompan=z='min(zoom+0.0025,1.20)'",
+         "slideleft": "zoompan=z=1.14:x='iw/2-(iw/zoom/2)+(on/%d)*120'" % max(frames, 1),
+         "whippan":   "zoompan=z=1.12:y='ih/2-(ih/zoom/2)+(on/%d)*120'" % max(frames, 1),
+         "fadeblack": "zoompan=z='min(zoom+0.0009,1.06)'"}.get(transition, "zoompan=z='min(zoom+0.0011,1.10)'")
+    return base + z + f":d={frames}:s={W}x{H}:fps={FPS},setsar=1,fade=t=in:st=0:d=0.25"
+
+
+def _content_clip(idx, img, aud, secs, motion, transition, wd, min_dur=0.0) -> str:
+    dur = round(max(secs + 0.35, min_dur), 2); frames = int(dur * FPS); out = f"seg{idx}.mp4"
+    if motion:
+        vf = _motion_vf(transition, frames)
+    else:
+        vf = f"scale={W}:{H},setsar=1,fps={FPS},fade=t=in:st=0:d=0.25"
+    _run([FFMPEG, "-y", "-loop", "1", "-i", Path(img).name, "-i", Path(aud).name,
+          "-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]", "-map", "1:a",
+          "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "160k", "-t", str(dur), out], cwd=wd)
+    return out
+
+
+def build_content_reel(spec: dict, workdir: str, used_meme_ids=None, seed: int = 0) -> dict:
+    """Faceless build reel: meme hook -> problem -> mockup build -> result -> CTA.
+    Returns path/seconds/narration + meme_id used (for variety tracking)."""
+    wd = Path(workdir); wd.mkdir(parents=True, exist_ok=True)
+    brand.ensure_assets()
+    style = spec.get("style", "cinematic")
+    transition = spec.get("transition", "fadeblack")
+    url = get_settings().website
+    segs = spec.get("segments") or []
+    meme_info = {"template_id": ""}
+
+    def _visual_for(i, seg):
+        role = seg.get("role", "")
+        dst = str(wd / f"img{i}.png")
+        if role == "hook":
+            info = _meme_segment(spec.get("meme", {}), dst, used_meme_ids, seed)
+            meme_info.update(info)
+            return dst, False
+        if role == "build":
+            _mockup_frame(spec.get("mockup", {}), dst, spec.get("mockup", {}).get("title", "Automation"), str(wd))
+            return dst, False
+        if role == "result":
+            big = _first_number(seg.get("on_screen", "") + " " + seg.get("narration", "")) or "10x"
+            _result_card(dst, big, seg.get("on_screen", "faster"))
+            return dst, False
+        if role == "cta":
+            _cta_card(dst, seg.get("on_screen") or PRODUCT_TAG(spec.get("product")), url)
+            return dst, False
+        # problem beat: visual per style
+        q = seg.get("on_screen") or spec.get("topic") or "office work"
+        raw = dst + ".raw"
+        if style == "stock" and pexels.fetch_photo(q, raw, "portrait"):
+            _photo(raw, dst); Path(raw).unlink(missing_ok=True)
+        elif style == "bold_type":
+            _hook_card(dst, seg.get("on_screen") or "Doing it by hand")
+        else:
+            _ai_image(q + " frustrated office worker, moody", raw); _photo(raw, dst); Path(raw).unlink(missing_ok=True)
+        return dst, True
+
+    def _assets(item):
+        i, seg = item
+        img, motion = _visual_for(i, seg)
+        aud = str(wd / f"aud{i}.mp3")
+        tts((seg.get("narration") or "").strip(), aud)
+        return i, img, aud, _audio_seconds(aud), motion
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        assets = sorted(ex.map(_assets, list(enumerate(segs))), key=lambda a: a[0])
+
+    clips, total, narration, timing, cursor = [], 0.0, [], [], 0.0
+    for (i, img, aud, secs, motion), seg in zip(assets, segs):
+        text = (seg.get("narration") or "").strip()
+        narration.append(text)
+        is_hook = seg.get("role") == "hook"
+        min_dur = 4.2 if is_hook else 0.0   # let the meme breathe so people can read it
+        # no caption over the meme (it already has big text)
+        if not is_hook:
+            timing.append((cursor, secs, text))
+        clips.append(_content_clip(i, img, aud, secs, motion, transition, str(wd), min_dur=min_dur))
+        seg_len = round(max(secs + 0.35, min_dur), 2); total += seg_len; cursor += seg_len
+
+    (wd / "list.txt").write_text("".join(f"file '{c}'\n" for c in clips), encoding="utf-8")
+    _run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", "list.txt",
+          "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "160k", "body.mp4"], cwd=str(wd))
+
+    final = "body.mp4"
+    color = STYLE_CAPTION.get(style, "&H00FFFFFF")
+    if _captions_ass(timing, str(wd / "subs.ass"), primary=color):
+        try:
+            _run([FFMPEG, "-y", "-i", "body.mp4", "-vf", "ass=subs.ass",
+                  "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                  "-c:a", "copy", "-movflags", "+faststart", "reel.mp4"], cwd=str(wd))
+            final = "reel.mp4"
+        except Exception as e:  # noqa: BLE001
+            log.warning("caption burn failed (%s)", e)
+    return {"path": str(wd / final), "seconds": round(total, 1), "segments": len(clips),
+            "narration": " ".join(narration), "meme_id": meme_info.get("template_id", ""),
+            "meme_name": meme_info.get("template_name", "")}
+
+
+def _first_number(text: str) -> str:
+    import re
+    m = re.search(r"(\d+\.?\d*\s*(?:x|%|s|hrs|hours|min|k)?)", text or "", re.I)
+    return (m.group(1).replace(" ", "") if m else "")
+
+
+def PRODUCT_TAG(product: str) -> str:
+    from .growth import PRODUCTS
+    return PRODUCTS.get(product, {}).get("tagline", "Automate it with Praxia")
+
+
+# ============================================================ STATIC FEED CARD ==
+def build_static_card(spec: dict, out_path: str) -> None:
+    """Minimal 1080x1350 (4:5) product feed image: mark + eyebrow + big headline + subline + url.
+    Deliberately little text so nothing floods."""
+    CW, CH = 1080, 1350
+    bg = Image.new("RGB", (CW, CH), OB)
+    glow = Image.new("L", (CW, CH), 0)
+    ImageDraw.Draw(glow).ellipse([CW // 2 - 520, -360, CW // 2 + 520, 560], fill=70)
+    glow = glow.filter(ImageFilter.GaussianBlur(170))
+    bg = Image.composite(Image.new("RGB", (CW, CH), GOLD), bg, glow.point(lambda x: int(x * 0.30)))
+    d = ImageDraw.Draw(bg)
+    # mark + wordmark top-left
+    try:
+        if brand.MARK.exists():
+            m = Image.open(brand.MARK).convert("RGBA"); mw = 74
+            m = m.resize((mw, int(m.size[1] * mw / m.size[0])), Image.LANCZOS)
+            bg.paste(m, (64, 66), m)
+        d.text((150, 78), "PRAXIA", font=_font(FONT_BOLD, 34), fill=INK)
+        d.text((152, 118), "AI STUDIOS", font=_font(FONT_BOLD, 15), fill=GOLD)
+    except Exception:  # noqa: BLE001
+        pass
+    eyebrow = (spec.get("product_name") or "PRAXIA").upper()
+    d.text((66, CH * 0.34), eyebrow, font=_font(FONT_BOLD, 26), fill=GOLDL)
+    # headline (big, wrapped, max 3 lines)
+    hf = _font(FONT_BOLD, 92)
+    yy = CH * 0.40
+    for ln in _wrap(d, (spec.get("headline") or "").upper(), hf, CW - 130)[:3]:
+        d.text((66, yy), ln, font=hf, fill=INK); yy += 100
+    # subline
+    if spec.get("subline"):
+        sf = _font(FONT_REG, 40)
+        for ln in _wrap(d, spec["subline"], sf, CW - 160)[:2]:
+            d.text((66, yy + 20), ln, font=sf, fill=BODY); yy += 52
+    # url pill bottom-left
+    url = get_settings().website
+    uf = _font(FONT_BOLD, 40); uw = d.textlength(url, font=uf)
+    d.rounded_rectangle([66, CH - 150, 66 + uw + 60, CH - 80], 38, fill=GOLD)
+    d.text((96, CH - 137), url, font=uf, fill=OB)
+    bg.save(out_path, "PNG")

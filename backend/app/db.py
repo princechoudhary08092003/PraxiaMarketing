@@ -71,13 +71,30 @@ CREATE TABLE IF NOT EXISTS autopilot_runs (
   log TEXT DEFAULT '', ig_post_id INTEGER, yt_post_id INTEGER,
   created_at TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS targets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, followers_per_day INTEGER DEFAULT 20,
+  likes_per_post INTEGER DEFAULT 50, reach_per_post INTEGER DEFAULT 1000,
+  impressions_per_post INTEGER DEFAULT 1500, created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS calls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, lead_id INTEGER, outcome TEXT DEFAULT '',
+  notes TEXT DEFAULT '', ts TEXT DEFAULT (datetime('now'))
+);
 """
 
 # columns added after the initial release (safe idempotent migration)
 MIGRATIONS = {
-    "leads": [("category", "TEXT DEFAULT ''"), ("last_reply_at", "TEXT DEFAULT ''")],
+    "leads": [("category", "TEXT DEFAULT ''"), ("last_reply_at", "TEXT DEFAULT ''"),
+              # B2B sales fields (ICP-driven outreach)
+              ("website", "TEXT DEFAULT ''"), ("decision_maker", "TEXT DEFAULT ''"),
+              ("company_size", "TEXT DEFAULT ''"), ("vertical", "TEXT DEFAULT ''"),
+              ("stage", "TEXT DEFAULT 'new'"), ("followup_step", "INTEGER DEFAULT 0"),
+              ("last_touch_at", "TEXT DEFAULT ''"), ("next_followup_at", "TEXT DEFAULT ''")],
     # real platform media id (IG media id / YT video id) for automatic analytics pulls
-    "posts": [("media_id", "TEXT DEFAULT ''"), ("video_seconds", "INTEGER DEFAULT 0")],
+    "posts": [("media_id", "TEXT DEFAULT ''"), ("video_seconds", "INTEGER DEFAULT 0"),
+              ("topic", "TEXT DEFAULT ''"), ("style", "TEXT DEFAULT ''"),
+              ("meme_id", "TEXT DEFAULT ''")],
     "post_metrics": [("plays", "INTEGER DEFAULT 0")],
 }
 

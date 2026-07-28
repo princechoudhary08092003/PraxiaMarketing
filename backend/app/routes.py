@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse, Response
 
-from . import ai, firsttouch, mailer, sourcing
+from . import ai, firsttouch, mailer, sales, sourcing
 from .config import get_settings
 from .db import get_conn
 
@@ -168,39 +168,63 @@ async def create_lead(payload: dict):
         conn.close()
 
 
+def _pick(low: dict, *keys: str) -> str:
+    for k in keys:
+        if low.get(k):
+            return low[k]
+    return ""
+
+
 @router.post("/leads/import")
 async def import_leads(payload: dict):
+    """Universal importer for Apollo / LeadVault / SphereScout / LinkedIn CSV exports.
+    Maps their columns to our rich B2B lead fields, dedups by email, tags with the current vertical."""
+    from . import sales
     text = payload.get("csv") or ""
     if not text.strip():
         raise HTTPException(400, "Paste CSV text with a header row.")
+    country = payload.get("country") or "USA"
+    icp = sales.get_icp()
     reader = csv.DictReader(io.StringIO(text))
-    added = 0
     conn = get_conn()
+    added = 0
     try:
+        existing = {r["email"].lower() for r in conn.execute("SELECT email FROM leads WHERE email!=''")}
         for row in reader:
             low = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
-            data = {
-                "name": low.get("name", ""),
-                "org": low.get("org") or low.get("organization") or low.get("organisation") or low.get("institution", ""),
-                "org_type": low.get("org_type") or low.get("type") or "university",
-                "country": low.get("country") or "India",
-                "title": low.get("title") or low.get("designation", ""),
-                "email": low.get("email", ""),
-                "linkedin_url": low.get("linkedin_url") or low.get("linkedin", ""),
-                "phone": low.get("phone") or low.get("whatsapp", ""),
-                "source": low.get("source") or "import",
-                "status": "new", "notes": low.get("notes", ""),
-            }
-            if not (data["email"] or data["org"] or data["name"]):
+            first = _pick(low, "first name", "first_name", "firstname")
+            last = _pick(low, "last name", "last_name", "lastname")
+            name = _pick(low, "name", "full name", "contact") or (first + " " + last).strip()
+            email = _pick(low, "email", "email address", "work email", "primary email").lower()
+            if email and email in existing:
                 continue
-            cols = ",".join(LEAD_FIELDS)
-            ph = ",".join("?" for _ in LEAD_FIELDS)
-            conn.execute(f"INSERT INTO leads({cols}) VALUES ({ph})", [data[k] for k in LEAD_FIELDS])
+            org = _pick(low, "company", "company name", "org", "organization", "account name", "employer")
+            if not (email or org or name):
+                continue
+            data = {
+                "name": name, "decision_maker": name,
+                "org": org, "org_type": "corporate",
+                "country": country,
+                "title": _pick(low, "title", "job title", "designation", "position"),
+                "email": email,
+                "linkedin_url": _pick(low, "person linkedin url", "linkedin url", "linkedin", "linkedin_url"),
+                "phone": _pick(low, "direct phone", "mobile phone", "company phone", "phone", "work direct phone"),
+                "website": _pick(low, "website", "company website", "domain", "company domain url"),
+                "company_size": _pick(low, "# employees", "employees", "company size", "employee count", "headcount"),
+                "vertical": icp["key"], "source": _pick(low, "source") or "import",
+                "status": "new", "stage": "new",
+                "notes": _pick(low, "notes", "industry", "department", "seniority"),
+            }
+            if email:
+                existing.add(email)
+            cols = list(data.keys())
+            conn.execute(f"INSERT INTO leads({','.join(cols)}) VALUES ({','.join('?' for _ in cols)})",
+                         [data[k] for k in cols])
             added += 1
         conn.commit()
     finally:
         conn.close()
-    return {"added": added}
+    return {"added": added, "vertical": icp["name"]}
 
 
 @router.patch("/leads/{lead_id}")
@@ -598,3 +622,109 @@ async def track_click(u: str, m: int | None = None, l: int | None = None):
     finally:
         conn.close()
     return RedirectResponse(u)
+
+
+# ===================================================== B2B SALES (ICP outreach) ==
+def _lead(lead_id: int) -> dict:
+    conn = get_conn()
+    try:
+        r = conn.execute("SELECT * FROM leads WHERE id=?", (lead_id,)).fetchone()
+        if not r:
+            raise HTTPException(404, "Lead not found.")
+        return _row(r)
+    finally:
+        conn.close()
+
+
+@router.get("/icp")
+def icp_get():
+    return {"current": sales.get_icp(),
+            "options": [{"key": k, "name": v["name"], "buyer": v["buyer"]}
+                        for k, v in sales.ICP_PROFILES.items()],
+            "sequence": sales.SEQUENCE}
+
+
+@router.post("/icp")
+def icp_set(payload: dict):
+    return {"current": sales.set_icp((payload or {}).get("key", ""))}
+
+
+@router.post("/leads/{lead_id}/cold-email")
+def lead_cold_email(lead_id: int):
+    try:
+        return sales.cold_email(_lead(lead_id))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Cold email failed: {e}")
+
+
+@router.post("/leads/{lead_id}/followup")
+def lead_followup(lead_id: int, payload: dict | None = None):
+    lead = _lead(lead_id)
+    p = payload or {}
+    step = int(p.get("step") or (lead.get("followup_step") or 0) + 1)
+    try:
+        return sales.followup(lead, step, p.get("last_subject", ""))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Follow-up failed: {e}")
+
+
+@router.post("/leads/{lead_id}/call-script")
+def lead_call_script(lead_id: int):
+    try:
+        return sales.call_script(_lead(lead_id))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Call script failed: {e}")
+
+
+@router.post("/leads/{lead_id}/log-call")
+def lead_log_call(lead_id: int, payload: dict):
+    outcome = (payload.get("outcome") or "").strip()
+    notes = (payload.get("notes") or "").strip()
+    conn = get_conn()
+    try:
+        conn.execute("INSERT INTO calls(lead_id,outcome,notes) VALUES (?,?,?)", (lead_id, outcome, notes))
+        conn.execute("INSERT INTO events(lead_id,type,meta) VALUES (?, 'call', ?)", (lead_id, outcome))
+        if outcome in ("booked", "demo", "meeting"):
+            conn.execute("UPDATE leads SET status='meeting', stage='meeting' WHERE id=?", (lead_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.post("/leads/{lead_id}/advance")
+def lead_advance(lead_id: int, payload: dict | None = None):
+    """Record that a follow-up step was sent: bump the step + timestamps."""
+    conn = get_conn()
+    try:
+        conn.execute("UPDATE leads SET followup_step=followup_step+1, last_touch_at=datetime('now') WHERE id=?",
+                     (lead_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.get("/sales/strategy")
+def sales_strategy():
+    conn = get_conn()
+    try:
+        total = conn.execute("SELECT COUNT(*) c FROM leads").fetchone()["c"]
+        by_stage = {r["status"]: r["c"] for r in conn.execute("SELECT status, COUNT(*) c FROM leads GROUP BY status")}
+        by_cat = {r["category"]: r["c"] for r in conn.execute(
+            "SELECT category, COUNT(*) c FROM leads WHERE category!='' GROUP BY category")}
+        sent = conn.execute("SELECT COUNT(*) c FROM messages WHERE status='sent'").fetchone()["c"]
+        replies = conn.execute("SELECT COUNT(*) c FROM replies").fetchone()["c"]
+        calls = conn.execute("SELECT COUNT(*) c FROM calls").fetchone()["c"]
+    finally:
+        conn.close()
+    stats = {"total_leads": total, "by_stage": by_stage, "reply_categories": by_cat,
+             "emails_sent": sent, "replies": replies, "calls_logged": calls}
+    try:
+        return {"stats": stats, "review": sales.strategy_review(stats)}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Strategy review failed: {e}")

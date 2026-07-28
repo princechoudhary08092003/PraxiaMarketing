@@ -31,54 +31,81 @@ ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 PRODUCTS = {
     "course_factory": {
         "name": "Praxia AI Course Factory",
-        "tagline": "One title in, a complete published course out.",
+        "tagline": "Your whole training catalog, built and owned by you.",
         "what": (
-            "Turns a single course title into a full, LMS-ready course: curriculum, professional "
-            "teaching slides, a narrated HD video, interactive in-lesson questions, and assessments, "
-            "then publishes the whole course into the client's LMS in one click. Compliance-ready."
+            "A product (not courses for sale): it builds full courses from a single title, turns live "
+            "session recordings and transcripts into polished videos, and turns Scribe docs into "
+            "narrated videos. Comes with a fully custom LMS you own for life, one-time setup, at a "
+            "small fraction of the usual cost."
         ),
         "options": [
-            "From a title: type a topic, get the whole course built and published.",
-            "From live trainings: turn a recorded Teams or Zoom session into a polished, trainer-less course video, real portal footage spliced in.",
-            "From Scribe: turn a step-by-step Scribe doc into a narrated course video.",
+            "Full course from a single title.",
+            "Videos from your live sessions and transcripts.",
+            "Courses from a Scribe doc.",
+            "A custom LMS you own for life, one-time setup.",
         ],
-        "market_price": "Agencies and course studios charge roughly $500 to $6,000 per finished course, and it takes weeks.",
-        "impact": "Weeks to an afternoon. A fraction of the usual cost. One person, one title, a published course.",
-        "audience": "L&D teams, universities, colleges, corporate trainers, MSPs, edtech.",
+        "market_price": "Agencies charge $500 to $6,000 per course, and LMS platforms bill thousands per year forever.",
+        "impact": "Weeks to an afternoon, and you own the platform instead of renting it.",
+        "audience": "L&D teams, training companies, universities, MSPs, edtech.",
     },
-    "automation_sprint": {
-        "name": "AI & Automation Sprint",
-        "tagline": "Find the work worth automating, then automate it.",
+    "automation_consultancy": {
+        "name": "Praxia AI Automation",
+        "tagline": "Find your worst bottleneck. We automate it end to end.",
         "what": (
-            "A scheduled expert call maps your processes, spots what can be automated, and returns "
-            "an end-to-end custom solution that cuts cost and manual effort. Built around your real workflow."
+            "End-to-end automation consultancy. We start with a FREE assessment call where we diagnose "
+            "the real bottlenecks in your SOPs and processes, then build the full automated system for "
+            "you: whatever the workflow needs, wired into your tools."
         ),
         "options": [
-            "Discovery call: we map the process and the automation opportunity.",
-            "End-to-end custom build: the automation, delivered and wired into your tools.",
-            "Cost and effort reduction, measured before and after.",
+            "Free assessment call to find the bottleneck.",
+            "End-to-end custom automation, built and delivered.",
+            "Measured before and after: hours and cost cut.",
         ],
         "market_price": "Automation consultancies bill $5,000 to $50,000 per engagement over months.",
-        "impact": "Manual hours cut sharply, error rates down, payback in weeks not quarters.",
-        "audience": "Operations leads, founders, MSP owners, finance and support teams.",
+        "impact": "Manual hours cut sharply, errors down, payback in weeks. Starts with a free call.",
+        "audience": "Ops leads, founders, MSP owners, finance, HR and support teams.",
     },
-    "ai_trainings": {
-        "name": "AI Trainings & Masterclasses",
-        "tagline": "Ship real AI apps, taught by people who build them.",
+    "automation_training": {
+        "name": "Praxia Automation Training",
+        "tagline": "Teach your team to automate the boring work.",
         "what": (
-            "Live automation trainings, masterclasses and webinars from experts. Build vibe-coded and "
-            "production-grade apps end to end, from idea to deployed product, with your team."
+            "Hands-on training that teaches teams to automate real work: L&D processes, finance and "
+            "Excel, invoice generation, billing, reporting and more. Practical, build-along, immediately usable."
         ),
         "options": [
-            "Masterclasses and webinars from working experts.",
-            "Hands-on: build production apps end to end during the session.",
-            "Team upskilling on AI and automation that sticks.",
+            "Automate L&D processes.",
+            "Automate finance, Excel, invoicing and billing.",
+            "Team upskilling that produces working automations, not notes.",
         ],
-        "market_price": "Corporate AI training runs $2,000 to $20,000 per cohort.",
-        "impact": "Teams ship a working app by the end, not just notes. Skills that transfer to real work.",
-        "audience": "Engineering and product teams, agencies, founders, students who want to build.",
+        "market_price": "Corporate automation training runs $2,000 to $20,000 per cohort.",
+        "impact": "Teams walk out having automated a real task, not just watched slides.",
+        "audience": "Ops, finance, HR and L&D teams; agencies; founders.",
     },
 }
+
+# Big rotating pool of automation problems for the daily build-in-public reel. Each becomes a
+# convincing mockup + a meme hook. The variety engine avoids repeating recent ones.
+AUTOMATION_TOPICS = [
+    {"key": "invoice", "title": "Invoice Automation", "pain": "typing invoices by hand from emails"},
+    {"key": "payroll", "title": "Payroll Runs", "pain": "running payroll in spreadsheets every month"},
+    {"key": "hr_onboarding", "title": "HR Onboarding", "pain": "chasing paperwork for every new hire"},
+    {"key": "billing", "title": "Billing & Dunning", "pain": "sending payment reminders one by one"},
+    {"key": "finance_excel", "title": "Finance Reporting", "pain": "rebuilding the same Excel report weekly"},
+    {"key": "expense", "title": "Expense Approvals", "pain": "approving expense claims from a messy inbox"},
+    {"key": "attendance", "title": "Attendance & Rosters", "pain": "reconciling attendance sheets by hand"},
+    {"key": "data_entry", "title": "Data Entry", "pain": "copy pasting between systems all day"},
+    {"key": "captioning", "title": "Auto Captioning", "pain": "captioning and tagging video by hand"},
+    {"key": "email_triage", "title": "Email Triage", "pain": "sorting and routing hundreds of emails"},
+    {"key": "reporting", "title": "Weekly Reporting", "pain": "stitching dashboards together every Monday"},
+    {"key": "lead_routing", "title": "Lead Routing", "pain": "assigning leads manually from a form"},
+    {"key": "support_tickets", "title": "Support Triage", "pain": "tagging and routing support tickets"},
+    {"key": "contract_review", "title": "Contract Intake", "pain": "reading every contract for key dates"},
+    {"key": "inventory", "title": "Inventory Reorder", "pain": "checking stock and reordering by hand"},
+    {"key": "compliance", "title": "Compliance Checks", "pain": "chasing compliance sign-offs on a checklist"},
+]
+
+VISUAL_STYLES = ["cinematic", "stock", "bold_type", "duotone"]   # rotated for variety
+TRANSITIONS = ["fadeblack", "slideleft", "zoompunch", "whippan"]  # rotated for variety
 
 POSITIONING = """POSITIONING RULES (follow strictly):
 - NEVER state our own selling price or any discount. If value must be anchored, cite the MARKET price
@@ -368,6 +395,114 @@ minutes. Do not write short one-line sections."""
     data["segments"] = (data.get("sections") or [])[:13]
     data["product"] = product
     return data
+
+
+# ========================================================= FACELESS BUILD REEL ==
+CONTENT_SYSTEM = f"""You are a faceless short-form creator in the style of build-in-public tech
+creators (like EZsnippet): fast, funny, useful. You make daily Reels that solve ONE real work
+problem with automation and show the result. No face, no personal voice, faceless brand channel.
+
+Every reel opens with a FUNNY, RELATABLE MEME that has NOTHING to do with AI or tech, then pivots
+into the automation. The meme sets up the pain in a human, everyday way (office life, Monday dread,
+manual drudgery). Then you SHOW a slick tool that fixes it, give the impact, and a call to action.
+
+BE DISRUPTIVE. The first spoken line and on-screen text must be a pattern interrupt: a bold claim, a
+provocative "stop doing this", a spicy hot-take, or a shocking number. Punchy and confident, scroll-
+stopping, a little controversial is good. NOT bland, NOT corporate, NOT explicit or NSFW (keep it
+brand-safe for a B2B audience, edgy in wording not in content). Keep every on-screen text ULTRA short
+(2 to 4 words) so nothing floods the screen.
+
+{POSITIONING}
+
+Optimize for FOLLOWERS + LEADS (saves, shares, DMs, free assessment calls), not likes. The product
+being promoted determines the CTA:
+- Course Factory: "build your whole training catalog + own your LMS" -> visit site / DM.
+- Automation consultancy: "book a FREE bottleneck assessment call" -> DM / site.
+- Automation training: "learn to automate this yourself" -> DM / site."""
+
+
+def content_script(product: str, topic: dict, style: str, seed: int = 0) -> dict:
+    """One call: meme hook text + mockup spec + narration segments + caption/hashtags for the
+    faceless automation reel. topic = one AUTOMATION_TOPICS entry."""
+    p = PRODUCTS.get(product, {})
+    s = get_settings()
+    user = f"""Make today's faceless automation Reel.
+
+AUTOMATION PROBLEM: {topic.get('title')} (the pain: {topic.get('pain')})
+PRODUCT TO PROMOTE: {p.get('name','')} — {p.get('what','')}
+CTA CONTEXT: {p.get('impact','')}
+MARKET PRICE ANCHOR (never OUR price): {p.get('market_price','')}
+WEBSITE: {s.website}   HANDLE: {s.brand_handle}
+VISUAL STYLE FOR TODAY: {style} (keep it distinct from a generic look)
+
+Return JSON:
+{{
+  "meme": {{"top":"FUNNY top line, NON-AI, relatable office/work pain, all caps ok", "bottom":"FUNNY bottom line that lands the joke"}},
+  "yt_title": "punchy YouTube Shorts title <= 70 chars",
+  "caption": "IG caption: funny first line, 2 value lines, then 'Follow {s.brand_handle}' + a CTA ending with {s.website}. No em dashes.",
+  "hashtags": "12-15 space-separated hashtags big -> niche, mixing automation, the industry, and broad reach tags",
+  "mockup": {{
+     "title":"the tool name for {topic.get('title')}", "subtitle":"one line: what it does",
+     "badge":"AUTOMATED", "kpis":[{{"value":"e.g. 312","label":"short label"}} , 4 items with believable numbers],
+     "cols":["3 column headers for a live activity table"],
+     "rows":[["4-5 rows of 3 believable cells; status column should say Auto-approved/Done/Flagged"]],
+     "flow":["3-4 short pipeline steps, e.g. 'Email in','Extract','Post to ERP']
+  }},
+  "segments": [
+    {{"role":"hook","narration":"1 spoken line reading/riffing the meme, 6-12 words","on_screen":"2-4 words"}},
+    {{"role":"problem","narration":"the manual pain, 8-14 words","on_screen":"2-4 words"}},
+    {{"role":"build","narration":"what the automation does, 10-16 words","on_screen":"2-4 words"}},
+    {{"role":"result","narration":"the impact with a number, 8-14 words","on_screen":"2-4 words"}},
+    {{"role":"cta","narration":"the call to action, 6-12 words","on_screen":"2-4 words"}}
+  ]
+}}
+Exactly these 5 segments in this order. The meme must be genuinely funny and unrelated to AI."""
+    data = _chat_json(CONTENT_SYSTEM, user, temperature=0.9)
+    data["product"] = product
+    data["topic"] = topic.get("key")
+    data["style"] = style
+    # guarantee hashtags (a few broad reach tags always appended)
+    tags = (data.get("hashtags") or "").strip()
+    if len(tags.split()) < 6:
+        tags = (tags + " " + DEFAULT_HASHTAGS).strip()
+    data["hashtags"] = tags
+    return data
+
+
+DEFAULT_HASHTAGS = ("#automation #ai #productivity #nocode #workflow #business #tech #startup "
+                    "#futureofwork #efficiency #digitaltransformation #reelsindia")
+
+
+STATIC_SYSTEM = f"""You write ultra-minimal static social posts for a faceless premium AI studio.
+One product per post. Almost no text. A punchy 3-6 word headline, a one-line subline, and a caption.
+{POSITIONING}"""
+
+
+def static_post(product: str) -> dict:
+    """A minimal one-product static post (headline + subline + caption + hashtags)."""
+    p = PRODUCTS.get(product, {})
+    s = get_settings()
+    user = f"""Make a minimal static post for this product.
+
+PRODUCT: {p.get('name','')} — {p.get('what','')}
+TAGLINE: {p.get('tagline','')}
+IMPACT: {p.get('impact','')}
+WEBSITE: {s.website}  HANDLE: {s.brand_handle}
+
+Return JSON:
+{{
+  "headline": "3-6 word bold headline",
+  "subline": "one short line, max 10 words",
+  "caption": "2-3 short lines, end with 'Follow {s.brand_handle}' and {s.website}. No em dashes.",
+  "hashtags": "10-14 space-separated hashtags"
+}}"""
+    d = _chat_json(STATIC_SYSTEM, user, temperature=0.75)
+    tags = (d.get("hashtags") or "").strip()
+    if len(tags.split()) < 6:
+        tags = (tags + " " + DEFAULT_HASHTAGS).strip()
+    d["hashtags"] = tags
+    d["product"] = product
+    return d
 
 
 # =============================================================== 5. GROWTH ANALYST ==

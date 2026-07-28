@@ -25,7 +25,29 @@ log = logging.getLogger("praxia.autopilot")
 _lock = threading.Lock()
 _running = False
 
-PRODUCT_ROTATION = ["course_factory", "automation_sprint", "ai_trainings"]
+PRODUCT_ROTATION = ["course_factory", "automation_consultancy", "automation_training"]
+
+
+def _pick_variety():
+    """Choose a topic, visual style, transition and meme-avoid-set that differ from recent posts."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT topic, style, meme_id FROM posts WHERE status='posted' ORDER BY id DESC LIMIT 8"
+        ).fetchall()
+    finally:
+        conn.close()
+    recent_topics = {r["topic"] for r in rows if r["topic"]}
+    recent_styles = [r["style"] for r in rows if r["style"]]
+    used_memes = {r["meme_id"] for r in rows if r["meme_id"]}
+    posted = len(rows)
+    topics = [t for t in growth.AUTOMATION_TOPICS if t["key"] not in recent_topics] or growth.AUTOMATION_TOPICS
+    topic = topics[posted % len(topics)]
+    style = growth.VISUAL_STYLES[posted % len(growth.VISUAL_STYLES)]
+    if style in recent_styles[:2] and len(growth.VISUAL_STYLES) > 1:
+        style = growth.VISUAL_STYLES[(posted + 1) % len(growth.VISUAL_STYLES)]
+    transition = growth.TRANSITIONS[posted % len(growth.TRANSITIONS)]
+    return topic, style, transition, used_memes, posted
 
 
 # ------------------------------------------------------------------ run row --
@@ -132,11 +154,12 @@ def _record_post(platform: str, fmt: str, product: str, spec: dict, seo: dict,
     try:
         cur = conn.execute(
             "INSERT INTO posts(platform,product,format,theme,hook,title,caption,hashtags,script,"
-            "status,video_seconds) VALUES (?,?,?,?,?,?,?,?,?, 'drafted', ?)",
-            (platform, product, fmt, spec.get("pillar", ""),
+            "status,video_seconds,topic,style,meme_id) VALUES (?,?,?,?,?,?,?,?,?, 'drafted', ?,?,?,?)",
+            (platform, product, fmt, spec.get("pillar", spec.get("topic", "")),
              (spec.get("segments") or [{}])[0].get("narration", ""),
              spec.get("yt_title", ""), spec.get("caption", ""), seo.get("hashtags", ""),
-             json.dumps(spec.get("segments") or []), int(seconds)))
+             json.dumps(spec.get("segments") or []), int(seconds),
+             spec.get("topic", ""), spec.get("style", ""), spec.get("meme_id", "")))
         conn.commit()
         return cur.lastrowid
     finally:
@@ -154,7 +177,7 @@ def _mark_posted(post_id: int, media_id: str, url: str) -> None:
 
 
 # --------------------------------------------------------------- the run ----
-def _execute(run_id: int) -> None:
+def _execute(run_id: int, reels_only: bool = False) -> None:
     global _running
     s = get_settings()
     workdir = tempfile.mkdtemp(prefix="praxia_reel_")
@@ -173,49 +196,53 @@ def _execute(run_id: int) -> None:
         else:
             _log(run_id, "No platform connected yet, skipping analytics pull (dry build).", "warn")
 
-        # 2) MASTERMIND: diagnose + decide today's reel + demo
+        # 2) MASTERMIND: diagnose + decide today's product
         plan = _todays_angle(run_id)
-        angle = plan["reel"]
-        pname = growth.PRODUCTS.get(angle["product"], {}).get("name", angle["product"])
-        _log(run_id, f"Reel angle: {pname} | {angle['pillar']} | {angle.get('hook_angle','')[:80]}")
+        product = plan["reel"]["product"]
+        pname = growth.PRODUCTS.get(product, {}).get("name", product)
 
-        # 3) script, then editorial pre-check on the TEXT (cheap) BEFORE spending images.
+        # variety: a different automation topic / style / transition / meme every day
+        topic, style, transition, used_memes, posted_ct = _pick_variety()
+        _log(run_id, f"Today: {pname} | problem: {topic['title']} | style: {style} | transition: {transition}")
+
+        # 3) content script (meme + mockup + narration); editorial pre-check on narration + caption
         def _narr(sp):
-            return " ".join((s.get("narration") or "") for s in (sp.get("segments") or []))
+            return " ".join((x.get("narration") or "") for x in (sp.get("segments") or []))
 
-        spec = growth.reel_script(angle["product"], angle["pillar"], angle.get("hook_angle", ""))
-        spec["pillar"] = angle["pillar"]
+        spec = growth.content_script(product, topic, style)
+        spec["transition"] = transition
         for attempt in (1, 2, 3):
             ed = qa.editorial_check(_narr(spec), spec.get("caption", ""), spec.get("yt_title", ""))
             if ed["ok"]:
                 break
-            _log(run_id, "Editorial flagged the script: " + "; ".join(ed["issues"]) +
-                 ". Rewriting (no images spent yet).", "warn")
+            _log(run_id, "Editorial flagged the script: " + "; ".join(ed["issues"]) + ". Rewriting.", "warn")
             if attempt == 3:
-                _log(run_id, "Script still flagged after 3 rewrites. Aborting, nothing built.", "error")
+                _log(run_id, "Script still flagged after 3 rewrites. Aborting.", "error")
                 _finish(run_id, "failed")
                 return
-            spec = growth.reel_script(angle["product"], angle["pillar"],
-                                      angle.get("hook_angle", "") + ". " + ed.get("fix_hint", ""))
-            spec["pillar"] = angle["pillar"]
-        _log(run_id, f"Reel script approved. {len(spec.get('segments') or [])} beats + hashtags.")
+            spec = growth.content_script(product, topic, style)
+            spec["transition"] = transition
+        _log(run_id, "Meme + script approved. Building the reel (faceless)...")
         seo = {"hashtags": spec.get("hashtags", "")}
 
-        # 4) build once, then TECHNICAL QA (audio not cutting, duration). Rebuild once on failure.
+        # 4) build once, then TECHNICAL QA. Rebuild once on failure.
+        from . import reel as reel_mod
         built = None
         for attempt in (1, 2):
-            _log(run_id, f"Building reel (attempt {attempt}): voiceover, visuals, captions...")
-            built = reel_build(spec, workdir)
+            built = reel_mod.build_content_reel(spec, workdir, used_meme_ids=used_memes,
+                                                seed=posted_ct + attempt)
             tech = qa.technical_check(built["path"])
             if tech["ok"]:
-                _log(run_id, f"Reel built + QA passed: {tech['duration']}s, audio "
-                             f"{tech['mean_volume_db']} dB, no cut-outs.")
+                _log(run_id, f"Reel built + QA passed: {tech['duration']}s, meme "
+                             f"'{built.get('meme_name','')}', audio {tech['mean_volume_db']} dB.")
                 break
             _log(run_id, "Technical QA failed: " + "; ".join(tech["issues"]), "warn")
             if attempt == 2:
-                _log(run_id, "Video QA failed twice. Aborting, nothing published.", "error")
+                _log(run_id, "Video QA failed twice. Aborting.", "error")
                 _finish(run_id, "failed")
                 return
+        spec["topic"] = topic["key"]; spec["style"] = style; spec["meme_id"] = built.get("meme_id", "")
+        angle = {"product": product}  # keep downstream references working
 
         caption = spec.get("caption", "")
         tags = seo.get("hashtags", "")
@@ -261,8 +288,16 @@ def _execute(run_id: int) -> None:
         else:
             _log(run_id, "Instagram not connected, skipped.", "warn")
 
-        # 7) LONG-FORM DEMO to YouTube (3-5 min walkthrough)
-        if s.youtube_ready:
+        # 6b) STATIC product post to Instagram (minimal text, one product/day) — both modes
+        if s.instagram_ready and s.cloudinary_ready:
+            try:
+                _static_post_ig(run_id, posted_ct)
+                posted_any = True
+            except Exception as e:  # noqa: BLE001
+                _log(run_id, f"Static post error: {e}", "warn")
+
+        # 7) LONG-FORM DEMO to YouTube (3-5 min walkthrough) — skipped in reels-only mode
+        if not reels_only and s.youtube_ready:
             try:
                 d = plan["demo"]
                 dname = growth.PRODUCTS.get(d["product"], {}).get("name", d["product"])
@@ -296,6 +331,12 @@ def _execute(run_id: int) -> None:
             except Exception as e:  # noqa: BLE001
                 _log(run_id, f"Demo step error: {e}", "warn")
 
+        # 8) SELF-EVALUATION vs targets
+        try:
+            _self_evaluate(run_id)
+        except Exception as e:  # noqa: BLE001
+            _log(run_id, f"Self-eval skipped: {e}", "warn")
+
         _finish(run_id, "posted" if posted_any else "failed", ig_post_id, yt_post_id)
         _log(run_id, "Done." if posted_any else "Nothing was published (connect a platform).",
              "info" if posted_any else "warn")
@@ -315,15 +356,97 @@ def reel_build(spec: dict, workdir: str) -> dict:
     return reel.build_reel(spec, workdir)
 
 
+def _static_post_ig(run_id: int, posted_ct: int) -> None:
+    """Build + post a minimal static product card to Instagram, rotating one product per day."""
+    from . import reel as reel_mod
+    product = PRODUCT_ROTATION[posted_ct % len(PRODUCT_ROTATION)]
+    pname = growth.PRODUCTS.get(product, {}).get("name", product)
+    sp = growth.static_post(product)
+    _log(run_id, f"Static post: {pname} (minimal text).")
+    tmp = tempfile.mkdtemp(prefix="praxia_static_")
+    try:
+        img = str(Path(tmp) / "card.png")
+        reel_mod.build_static_card({"headline": sp.get("headline", pname),
+                                    "subline": sp.get("subline", ""),
+                                    "product_name": pname}, img)
+        up = media.upload(img, "image")
+        if not up.get("ok"):
+            _log(run_id, f"Static image upload failed: {up.get('error')}", "warn"); return
+        cap = (sp.get("caption", "") + "\n\n" + sp.get("hashtags", "")).strip()
+        r = social.publish_image_url(cap, up["url"])
+        media.destroy(up.get("public_id", ""), "image")
+        if r.get("ok"):
+            conn = get_conn()
+            try:
+                conn.execute(
+                    "INSERT INTO posts(platform,product,format,caption,hashtags,status,posted_at,media_id,external_url) "
+                    "VALUES ('instagram',?, 'image', ?, ?, 'posted', datetime('now'), ?, ?)",
+                    (product, sp.get("caption", ""), sp.get("hashtags", ""),
+                     r.get("media_id", ""), r["external_url"]))
+                conn.commit()
+            finally:
+                conn.close()
+            _log(run_id, f"Static post live: {r['external_url']}")
+        else:
+            _log(run_id, f"Static post failed: {r.get('error')}", "warn")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def get_targets() -> dict:
+    conn = get_conn()
+    try:
+        r = conn.execute("SELECT * FROM targets ORDER BY id DESC LIMIT 1").fetchone()
+        if not r:
+            conn.execute("INSERT INTO targets DEFAULT VALUES"); conn.commit()
+            r = conn.execute("SELECT * FROM targets ORDER BY id DESC LIMIT 1").fetchone()
+        return {k: r[k] for k in r.keys()}
+    finally:
+        conn.close()
+
+
+def achieved() -> dict:
+    """Best-so-far numbers: totals + best single-post reach/likes, plus posted count."""
+    conn = get_conn()
+    try:
+        t = conn.execute(
+            "SELECT COALESCE(SUM(reach),0) reach, COALESCE(SUM(likes),0) likes, "
+            "COALESCE(SUM(impressions),0)+COALESCE(SUM(plays),0) impressions, "
+            "COALESCE(SUM(followers_delta),0) followers, COALESCE(MAX(reach),0) best_reach, "
+            "COALESCE(MAX(likes),0) best_likes FROM post_metrics").fetchone()
+        posted = conn.execute("SELECT COUNT(*) c FROM posts WHERE status='posted'").fetchone()["c"]
+        return {**{k: t[k] for k in t.keys()}, "posted": posted}
+    finally:
+        conn.close()
+
+
+def _self_evaluate(run_id: int) -> None:
+    tg = get_targets(); ac = achieved()
+    parts = []
+    for label, got, want in [
+        ("reach/post", ac["best_reach"], tg["reach_per_post"]),
+        ("likes/post", ac["best_likes"], tg["likes_per_post"]),
+        ("followers", ac["followers"], tg["followers_per_day"]),
+    ]:
+        hit = "on track" if got >= want else f"short ({got}/{want})"
+        parts.append(f"{label}: {hit}")
+    behind = ac["best_reach"] < tg["reach_per_post"]
+    verdict = ("Below target so far. New accounts need consistent daily posting for weeks; "
+               "the engine will keep varying hooks, memes and topics to find what lands."
+               if behind else "Hitting targets. Keep the cadence.")
+    _log(run_id, "Self-eval vs targets: " + " | ".join(parts))
+    _log(run_id, verdict)
+
+
 def cleanup_orphans() -> None:
     """Remove any reel temp dirs left by a hard crash (normal runs self-clean)."""
     import glob
-    for pat in ("praxia_reel_*", "praxia_demo_*"):
+    for pat in ("praxia_reel_*", "praxia_demo_*", "praxia_static_*"):
         for d in glob.glob(str(Path(tempfile.gettempdir()) / pat)):
             shutil.rmtree(d, ignore_errors=True)
 
 
-def run_today(force: bool = False) -> dict:
+def run_today(force: bool = False, reels_only: bool = False) -> dict:
     global _running
     with _lock:
         if _running:
@@ -332,5 +455,6 @@ def run_today(force: bool = False) -> dict:
             return {"ok": False, "error": "Already posted today. Come back tomorrow, or force a run."}
         _running = True
     run_id = _new_run()
-    threading.Thread(target=_execute, args=(run_id,), name=f"autopilot-{run_id}", daemon=True).start()
+    threading.Thread(target=_execute, args=(run_id, reels_only),
+                     name=f"autopilot-{run_id}", daemon=True).start()
     return {"ok": True, "run_id": run_id}

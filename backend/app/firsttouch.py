@@ -12,7 +12,7 @@ Thank you for taking my call earlier. As promised, here is a quick look at Praxi
 
 It turns a single course title into a complete, ready-to-publish course. Full curriculum, professionally designed slides, narrated video lessons, hands-on labs, interactive knowledge checks, and auto-graded assessments, published straight into your LMS. One person can do it in a single afternoon, with no production team and no manual uploading.
 
-A course that normally costs ₹50,000 to ₹5,00,000 and takes weeks to produce, Praxia delivers at a small fraction of the cost, with your academic or compliance standards built in from the start.
+A course that normally costs {cost_range} and takes weeks to produce, Praxia delivers at a small fraction of the cost, with your academic or compliance standards built in from the start.
 
 I would rather show you than tell you, so here is a short demo of the real output:
 Watch the demo: {youtube}
@@ -39,6 +39,14 @@ def _first_name(name: str) -> str:
     return parts[0] if parts else "there"
 
 
+def _cost_range(country: str) -> str:
+    """India leads see INR, everyone else sees USD."""
+    c = (country or "").strip().lower()
+    if c in ("india", "in", "bharat", ""):
+        return "₹50,000 to ₹5,00,000"
+    return "$600 to $6,000"
+
+
 def build_first_touch(lead: dict) -> dict:
     s = get_settings()
     name = (lead.get("name") or "").strip()
@@ -47,5 +55,6 @@ def build_first_touch(lead: dict) -> dict:
     body = BODY.format(
         first_name=first, youtube=youtube, email=s.public_email,
         whatsapp=s.whatsapp, sender=s.sender_name,
+        cost_range=_cost_range(lead.get("country")),
     )
     return {"subject": SUBJECT, "body": body}

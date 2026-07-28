@@ -64,10 +64,14 @@ PLACEHOLDER_DOMAINS = ("example.com", "example.org", "example.net", "mysite.com"
                        "yourcompany.com", "sentry.wixpress.com", "wixpress.com", "wix.com",
                        "godaddy.com", "squarespace.com", "placeholder.com")
 
-# role addresses that are genuinely useful for L&D / training outreach (ranked first)
-GOOD_ROLES = ("training", "learning", "lnd", "l&d", "talent", "development", "corporate",
-              "hr", "people", "academy", "education", "programs", "programmes", "info",
-              "contact", "hello", "connect", "enquiry", "enquiries", "admissions", "outreach")
+# decision-maker locals (ranked HIGHEST: these actually convert, unlike info@ inboxes)
+DECISION_ROLES = ("ceo", "founder", "cofounder", "owner", "president", "director", "head",
+                  "vp", "chief", "cto", "coo", "cfo", "manager", "lead", "principal")
+# role addresses that are genuinely useful for L&D / training / automation outreach
+GOOD_ROLES = ("training", "learning", "lnd", "l&d", "talent", "development", "enablement",
+              "corporate", "hr", "people", "academy", "education", "operations", "ops",
+              "programs", "programmes", "info", "contact", "hello", "connect", "sales",
+              "partnerships", "enquiry", "enquiries", "outreach")
 
 # --- built-in directory of target institutions (name, domain, country, type) ---
 SEED = [
@@ -146,11 +150,12 @@ def _valid_email(em: str, domain: str | None) -> bool:
 
 
 def _rank(email: str, domain: str) -> tuple:
-    """Sort key: same-domain first, then useful role addresses, then alphabetical."""
+    """Sort key: same-domain first, then DECISION-MAKERS, then useful roles, then the rest."""
     local = email.partition("@")[0]
     on_domain = 0 if domain and domain in email else 1
+    is_decision = 0 if any(r in local for r in DECISION_ROLES) else 1
     is_role = 0 if any(r in local for r in GOOD_ROLES) else 1
-    return (on_domain, is_role, email)
+    return (on_domain, is_decision, is_role, email)
 
 
 def _fetch_text(client: httpx.Client, url: str) -> str:
